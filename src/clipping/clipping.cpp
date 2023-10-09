@@ -35,7 +35,7 @@ Polygon Weiler_Atherton::weiler_atherton_algorithm(Polygon &poly, Polygon &windo
                         // get the type
                         auto res = outer_product(
                             poly_loop_current->vertex->x - window_loop_current->vertex->x,
-                            poly_loop_current->vertex->y - window_loop_current->vertex->x,
+                            poly_loop_current->vertex->y - window_loop_current->vertex->y,
                             window_loop_current->twin->vertex->x - window_loop_current->vertex->x,
                             window_loop_current->twin->vertex->y - window_loop_current->vertex->y
                         );

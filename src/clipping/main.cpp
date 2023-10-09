@@ -2,7 +2,8 @@
 #include <GLFW/glfw3.h>
 
 #include "common/polygon.hxx"
-#include <common/shader.hxx>
+#include "common/shader.hxx"
+#include "common/intersector.hxx"
 
 #include <iostream>
 #include <array>
@@ -86,7 +87,9 @@ VerticesBuffer vertices2{
 	// { 0.0f,  0.2f, 0.0f}
 };
 
-unsigned int VBO[2], VAO[2];
+VerticesBuffer inter_vertices {};
+
+unsigned int VBO[3], VAO[3];
 
 // 0 for first polygon, 1 for second polygon
 int current_state = 0;
@@ -127,7 +130,11 @@ void mouse_button_callback(GLFWwindow* window, int button, int state, int mod) {
 			glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
 			glBufferData(GL_ARRAY_BUFFER, vertices1.size(), vertices1.get_buffer_address(), GL_STATIC_DRAW);
 
+			polygon1.add_loop(vertices1.get_vertex_tuple_vector(poly1_flags.back(), vertices1.count - 1));
+
 			poly1_flags.push_back(vertices1.count);
+			polygon1.print_polygon_message();
+
 		}
 		else if (current_state == 1) {
 			auto [x, y, z] = vertices2.get_vertex(poly2_flags.back());
@@ -136,7 +143,10 @@ void mouse_button_callback(GLFWwindow* window, int button, int state, int mod) {
 			glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
 			glBufferData(GL_ARRAY_BUFFER, vertices2.size(), vertices2.get_buffer_address(), GL_STATIC_DRAW);
 
+			polygon2.add_loop(vertices2.get_vertex_tuple_vector(poly2_flags.back(), vertices2.count - 1));
+
 			poly2_flags.push_back(vertices2.count);
+			polygon2.print_polygon_message();
 		}
 	}
 		
@@ -184,13 +194,13 @@ int main()
 
 	Shader redShader(std::string(SHADER_DIR) + "/simple.vs", std::string(SHADER_DIR) + "/red.fs");
 	Shader greenShader(std::string(SHADER_DIR) + "/simple.vs", std::string(SHADER_DIR) + "/green.fs");
+	Shader blueShader(std::string(SHADER_DIR) + "/simple.vs", std::format("{}/blue.fs", SHADER_DIR));
 
 	// set up vertex data (and buffer(s)) and configure vertex attributes
 	// ------------------------------------------------------------------
 
-
-	glGenVertexArrays(2, VAO);
-	glGenBuffers(2, VBO);
+	glGenVertexArrays(3, VAO);
+	glGenBuffers(3, VBO);
 
 	glBindVertexArray(VAO[0]);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
@@ -201,6 +211,13 @@ int main()
 	glBindVertexArray(VAO[1]);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
 	glBufferData(GL_ARRAY_BUFFER, vertices2.size(), vertices2.get_buffer_address(), GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);
+
+
+	glBindVertexArray(VAO[2]);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO[2]);
+	glBufferData(GL_ARRAY_BUFFER, inter_vertices.size(), inter_vertices.get_buffer_address(), GL_STATIC_DRAW);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
 
@@ -239,6 +256,10 @@ int main()
 
 		glBindVertexArray(0);
 
+		glUseProgram(blueShader.ID);
+		glBindVertexArray(VAO[2]);
+		glDrawArrays(GL_POINTS, 0, inter_vertices.count);
+		glBindVertexArray(0);
 
 		glfwSetMouseButtonCallback(window, mouse_button_callback);
 
@@ -274,6 +295,20 @@ void processInput(GLFWwindow* window)
 
 	if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) {
 		current_state = 1;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) {
+		auto poly_inter_res = polygon_intersect_points(polygon1, polygon2);
+		std::cout << "asdf " << poly_inter_res.size() << std::endl;
+		for (auto item: poly_inter_res) {
+			auto [x, y] = item;
+			std::cout << x << ' ' << y << std::endl;
+			inter_vertices.add_vertices(x, y, 0);
+		}
+
+		glBindVertexArray(VAO[2]);
+		glBindBuffer(GL_ARRAY_BUFFER, VBO[2]);
+		glBufferData(GL_ARRAY_BUFFER, inter_vertices.size(), inter_vertices.get_buffer_address(), GL_STATIC_DRAW);
 	}
 
 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {

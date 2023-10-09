@@ -1,6 +1,7 @@
 ﻿#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#include "clipping.hxx"
 #include "common/polygon.hxx"
 #include "common/shader.hxx"
 #include "common/intersector.hxx"
@@ -82,8 +83,8 @@ VerticesBuffer vertices1{
 };
 
 VerticesBuffer vertices2{
-	{-0.2f, -0.2f, 0.0f},
-	{ 0.2f, -0.2f, 0.0f},
+	// {-0.2f, -0.2f, 0.0f},
+	// { 0.2f, -0.2f, 0.0f},
 	// { 0.0f,  0.2f, 0.0f}
 };
 
@@ -94,9 +95,10 @@ unsigned int VBO[3], VAO[3];
 // 0 for first polygon, 1 for second polygon
 int current_state = 0;
 bool is_inner_state = false;
+bool algo_flag = false;
 
 Polygon polygon1, polygon2;
-std::vector<int> poly1_flags{0}, poly2_flags{0};
+std::vector<int> poly1_flags{0}, poly2_flags{0}, inter_flag{0};
 
 void mouse_button_callback(GLFWwindow* window, int button, int state, int mod) {
 	int height, width;
@@ -259,6 +261,13 @@ int main()
 		glUseProgram(blueShader.ID);
 		glBindVertexArray(VAO[2]);
 		glDrawArrays(GL_POINTS, 0, inter_vertices.count);
+
+		for (int i = 1; i < inter_flag.size(); i++)
+			glDrawArrays(GL_LINE_STRIP, inter_flag[i - 1], inter_flag[i] - inter_flag[i - 1]);
+		if (inter_flag.back() < inter_vertices.count - 1)
+			glDrawArrays(GL_LINE_STRIP, inter_flag.back(), inter_vertices.count - inter_flag.back());
+
+
 		glBindVertexArray(0);
 
 		glfwSetMouseButtonCallback(window, mouse_button_callback);
@@ -309,6 +318,34 @@ void processInput(GLFWwindow* window)
 		glBindVertexArray(VAO[2]);
 		glBindBuffer(GL_ARRAY_BUFFER, VBO[2]);
 		glBufferData(GL_ARRAY_BUFFER, inter_vertices.size(), inter_vertices.get_buffer_address(), GL_STATIC_DRAW);
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) {
+		if (not algo_flag) {
+			Weiler_Atherton algo;
+			auto res = algo.weiler_atherton_algorithm(polygon2, polygon1);
+			res.print_polygon_message();
+
+			for (auto loop: res.polygon->loops) {
+				auto start = loop.start;
+				auto cur = start;
+				
+				while(true) {
+					inter_vertices.add_vertices(cur->vertex->x, cur->vertex->y, 0);
+					cur = cur->succ;
+					if (cur == start) break;
+				}
+
+				inter_vertices.add_vertices(start->vertex->x, start->vertex->y, 0);
+				inter_flag.push_back(inter_vertices.count);
+			}
+
+			glBindVertexArray(VAO[2]);
+			glBindBuffer(GL_ARRAY_BUFFER, VBO[2]);
+			glBufferData(GL_ARRAY_BUFFER, inter_vertices.size(), inter_vertices.get_buffer_address(), GL_STATIC_DRAW);
+
+			algo_flag = true;
+		}
 	}
 
 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {

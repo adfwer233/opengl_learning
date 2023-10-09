@@ -2,7 +2,7 @@
 
 set(CMAKE_CXX_STANDARD 20)
 
-set(SRC_FILE "main.cpp")
+set(SRC_FILE "main.cpp" "clipping.cpp")
 
 
 

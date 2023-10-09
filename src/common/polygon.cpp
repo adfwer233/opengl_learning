@@ -25,6 +25,8 @@ void Polygon::add_loop(std::vector<std::tuple<float, float, float>> vertices, bo
 	std::list<half_edge_vertex*> vertices_list;
 	std::list<half_edge_edge*> edges_list;
 
+	if (vertices.empty()) return;
+
 	auto [x, y, z] = vertices[0];
 	auto first_vertex = new half_edge_vertex{ x, y, z };
 	vertices_list.push_back(first_vertex);
@@ -76,7 +78,7 @@ void Polygon::add_loop(std::vector<std::tuple<float, float, float>> vertices, bo
 
 
 	edge->face = is_inner ? nullptr : polygon;
-	edge_twin->face = is_inner ? polygon : nullptr; 
+	edge_twin->face = is_inner ? polygon : nullptr;
 
 	vertices_list.back()->edge = edges_list.front();
 	vertices_list.back()->face = polygon;
@@ -86,4 +88,20 @@ void Polygon::add_loop(std::vector<std::tuple<float, float, float>> vertices, bo
 
 	polygon->vertices.splice(polygon->vertices.end(), vertices_list);
 	polygon->loops.push_back(half_edge_loop{ edges_list.front() });
+}
+
+std::vector<half_edge_edge*> Polygon::get_all_edges() {
+	std::vector<half_edge_edge*> result;
+
+	for (auto loop : polygon->loops) {
+		auto start = loop.start;
+		auto current = start;
+		while (true) {
+			result.push_back(current);
+			current = current->succ;
+			if (current == start) break;
+		}
+	}
+
+	return result;
 }

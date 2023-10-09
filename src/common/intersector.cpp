@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "common/intersector.hxx"
 
 // Todo: use concept and template
@@ -62,5 +64,33 @@ std::vector<point> polygon_intersect_points(Polygon& poly1, Polygon& poly2) {
 	}
 
 	std::cout << result.size() << std::endl;
+	return result;
+}
+
+std::vector<std::tuple<point, bool>> intersect_segment_polygon(point a, point b, Polygon &poly) {
+	std::vector<std::tuple<point, bool>> result;
+
+	auto edges = poly.get_all_edges();
+
+	auto [ax, ay] = a;
+	auto [bx, by] = b;
+	
+	for (auto edge: edges) {
+		auto [flag, x, y] = line_segment_intersector(
+			a, b, std::make_tuple(edge->vertex->x, edge->vertex->y), std::make_tuple(edge->twin->vertex->x, edge->twin->vertex->y)
+		);
+
+		if (flag) {
+			auto tmp = outer_product(edge->vertex->x - ax, edge->vertex->y - ay, bx - ax, by - ay);
+			result.push_back(std::make_tuple(std::make_tuple(x, y), tmp > 0));
+		}
+	}
+
+	std::ranges::sort(result, [&](auto t1, auto t2) -> bool {
+		point p1 = std::get<0>(t1);
+		point p2 = std::get<0>(t2);
+		return abs(std::get<0>(p1) - ax) < abs(std::get<0>(p2) - ax);
+	});
+
 	return result;
 }

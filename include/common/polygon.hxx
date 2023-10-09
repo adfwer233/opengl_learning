@@ -10,10 +10,6 @@ struct Polygon {
 
 	half_edge_face* polygon = nullptr;
 
-	~Polygon() {
-		delete polygon;
-	}
-
 	Polygon() {
 		polygon = new half_edge_face();
 	}
@@ -22,4 +18,5 @@ struct Polygon {
 
 	void add_loop(std::vector<std::tuple<float, float, float>> vertices, bool is_inner = false);
 
+	std::vector<half_edge_edge*> get_all_edges();
 };

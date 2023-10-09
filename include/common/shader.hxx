@@ -11,6 +11,4 @@ class Shader {
 
         // construct shader from .vs and .fs files
         Shader(const std::string vertexPath, const std::string fragmentPath);
-
-        void use();
 };

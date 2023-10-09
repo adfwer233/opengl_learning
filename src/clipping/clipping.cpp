@@ -20,10 +20,10 @@ Polygon Weiler_Atherton::weiler_atherton_algorithm(Polygon &poly, Polygon &windo
 
                 while (true) {
                     auto [flag, x, y] = line_segment_intersector(
-                        std::make_tuple(poly_loop_current->vertex->x, poly_loop_current->vertex->y),
-                        std::make_tuple(poly_loop_current->twin->vertex->x, poly_loop_current->twin->vertex->y),
-                        std::make_tuple(window_loop_current->vertex->x, window_loop_current->vertex->y),
-                        std::make_tuple(window_loop_current->twin->vertex->x, window_loop_current->twin->vertex->y)
+                        {poly_loop_current->vertex->x, poly_loop_current->vertex->y},
+                        {poly_loop_current->twin->vertex->x, poly_loop_current->twin->vertex->y},
+                        {window_loop_current->vertex->x, window_loop_current->vertex->y},
+                        {window_loop_current->twin->vertex->x, window_loop_current->twin->vertex->y}
                     );
 
                     std::cout << std::format("inter {} {}\n", x, y);

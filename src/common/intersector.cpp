@@ -1,13 +1,10 @@
 #include <algorithm>
 
+#include <concepts>
+
 #include "common/intersector.hxx"
 
-// Todo: use concept and template
-float outer_product(float x1, float y1, float x2, float y2) {
-	return x1 * y2 - x2 * y1;
-}
-
-std::tuple<bool, float, float> line_segment_intersector(point a, point b, point c, point d) {
+std::tuple<bool, float, float> line_segment_intersector(Point2d a, Point2d b, Point2d c, Point2d d) {
 
 	auto [ax, ay] = a;
 	auto [bx, by] = b;
@@ -29,8 +26,8 @@ std::tuple<bool, float, float> line_segment_intersector(point a, point b, point 
 	return std::make_tuple(true, ax + dx1, ay + dy1);
 }
 
-std::vector<point> polygon_intersect_points(Polygon& poly1, Polygon& poly2) {
-	std::vector<point> result;
+std::vector<Point2d> polygon_intersect_points(Polygon& poly1, Polygon& poly2) {
+	std::vector<Point2d> result;
 
 	for (auto poly1_loop : poly1.polygon->loops) {
 		auto loop1_start = poly1_loop.start;
@@ -44,14 +41,14 @@ std::vector<point> polygon_intersect_points(Polygon& poly1, Polygon& poly2) {
 
 				while (true) {
 					auto [flag, x, y] = line_segment_intersector(
-						std::make_tuple(cur_edge1->vertex->x, cur_edge1->vertex->y),
-						std::make_tuple(cur_edge1->twin->vertex->x, cur_edge1->twin->vertex->y),
-						std::make_tuple(cur_edge2->vertex->x, cur_edge2->vertex->y),
-						std::make_tuple(cur_edge2->twin->vertex->x, cur_edge2->twin->vertex->y)
+						{cur_edge1->vertex->x, cur_edge1->vertex->y},
+						{cur_edge1->twin->vertex->x, cur_edge1->twin->vertex->y},
+						{cur_edge2->vertex->x, cur_edge2->vertex->y},
+						{cur_edge2->twin->vertex->x, cur_edge2->twin->vertex->y}
 					);
 
 					if (flag)
-						result.push_back(std::make_tuple(x, y));
+						result.push_back(Point2d{x, y});
 					
 					cur_edge2 = cur_edge2->succ;
 					if (cur_edge2 == loop2_start) break;
@@ -67,8 +64,8 @@ std::vector<point> polygon_intersect_points(Polygon& poly1, Polygon& poly2) {
 	return result;
 }
 
-std::vector<std::tuple<point, bool>> intersect_segment_polygon(point a, point b, Polygon &poly) {
-	std::vector<std::tuple<point, bool>> result;
+std::vector<std::tuple<Point2d, bool>> intersect_segment_polygon(Point2d a, Point2d b, Polygon &poly) {
+	std::vector<std::tuple<Point2d, bool>> result;
 
 	auto edges = poly.get_all_edges();
 
@@ -77,19 +74,19 @@ std::vector<std::tuple<point, bool>> intersect_segment_polygon(point a, point b,
 	
 	for (auto edge: edges) {
 		auto [flag, x, y] = line_segment_intersector(
-			a, b, std::make_tuple(edge->vertex->x, edge->vertex->y), std::make_tuple(edge->twin->vertex->x, edge->twin->vertex->y)
+			a, b, {edge->vertex->x, edge->vertex->y}, {edge->twin->vertex->x, edge->twin->vertex->y}
 		);
 
 		if (flag) {
 			auto tmp = outer_product(edge->vertex->x - ax, edge->vertex->y - ay, bx - ax, by - ay);
-			result.push_back(std::make_tuple(std::make_tuple(x, y), tmp > 0));
+			result.push_back(std::make_tuple(Point2d{x, y}, tmp > 0));
 		}
 	}
 
 	std::ranges::sort(result, [&](auto t1, auto t2) -> bool {
-		point p1 = std::get<0>(t1);
-		point p2 = std::get<0>(t2);
-		return abs(std::get<0>(p1) - ax) < abs(std::get<0>(p2) - ax);
+		Point2d p1 = std::get<0>(t1);
+		Point2d p2 = std::get<0>(t2);
+		return abs(p1.x - ax) < abs(p2.x - ax);
 	});
 
 	return result;

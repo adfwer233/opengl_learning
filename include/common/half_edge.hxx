@@ -5,8 +5,7 @@
 struct half_edge_edge;
 struct half_edge_face;
 
-class half_edge_vertex {
-public:
+struct half_edge_vertex {
 	float x, y, z;
 	half_edge_face* face;
 	half_edge_edge* edge;

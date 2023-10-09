@@ -1,5 +1,7 @@
 ﻿#include <glad/glad.h>
 #include <GLFW/glfw3.h>
+
+#include "common/polygon.hxx"
 #include <common/shader.hxx>
 
 #include <iostream>
@@ -55,6 +57,13 @@ public:
 	std::tuple<float, float, float> get_vertex(int index) {
 		return std::make_tuple(vertices[3 * index], vertices[3 * index + 1], vertices[3 * index + 2]);
 	}
+
+	auto get_vertex_tuple_vector() {
+		std::vector<std::tuple<float, float, float>> res;
+		for (int i: std::views::iota(0, count))
+			res.push_back(get_vertex(i));
+		return res;
+	}
 };
 
 VerticesBuffer vertices1{
@@ -106,6 +115,10 @@ void mouse_button_callback(GLFWwindow* window, int button, int state, int mod) {
 			glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
 			glBufferData(GL_ARRAY_BUFFER, vertices1.size(), vertices1.get_buffer_address(), GL_STATIC_DRAW);
 			current_state++;
+
+			Polygon poly;
+			poly.add_loop(vertices1.get_vertex_tuple_vector());
+			poly.print_polygon_message();
 		}
 		else if (current_state == 1) {
 			auto [x, y, z] = vertices2.get_vertex(0);

@@ -64,31 +64,43 @@ public:
 			res.push_back(get_vertex(i));
 		return res;
 	}
+
+	auto get_vertex_tuple_vector(int begin, int end) {
+		std::vector<std::tuple<float, float, float>> res;
+		for (int i: std::views::iota(begin, end))
+			res.push_back(get_vertex(i));
+		return res;
+	}
 };
 
 VerticesBuffer vertices1{
 	{-0.5f, -0.5f, 0.0f},
 	{0.5f,  -0.5f, 0.0f},
-	{-0.5f,  0.5f, 0.0f},
-	{0.5f,   0.5f, 0.0f},
+	// {-0.5f,  0.5f, 0.0f},
+	// {0.5f,   0.5f, 0.0f},
 };
 
 VerticesBuffer vertices2{
 	{-0.2f, -0.2f, 0.0f},
 	{ 0.2f, -0.2f, 0.0f},
-	{ 0.0f,  0.2f, 0.0f}
+	// { 0.0f,  0.2f, 0.0f}
 };
 
 unsigned int VBO[2], VAO[2];
 
 // 0 for first polygon, 1 for second polygon
 int current_state = 0;
+bool is_inner_state = false;
+
+Polygon polygon1, polygon2;
+std::vector<int> poly1_flags{0}, poly2_flags{0};
 
 void mouse_button_callback(GLFWwindow* window, int button, int state, int mod) {
 	int height, width;
 	glfwGetWindowSize(window, &width, &height);
 
 	if (button == GLFW_MOUSE_BUTTON_LEFT and state == GLFW_PRESS) {
+		std::cout << poly1_flags.back() << ' ' << vertices1.count << std::endl;
 		double x, y;
 		glfwGetCursorPos(window, &x, &y);
 		std::cout << x / width << ' ' << y / height << ' ' << width << ' ' << height << std::endl;
@@ -109,27 +121,26 @@ void mouse_button_callback(GLFWwindow* window, int button, int state, int mod) {
 
 	if (button == GLFW_MOUSE_BUTTON_RIGHT and state == GLFW_PRESS) {
 		if (current_state == 0) {
-			auto [x, y, z] = vertices1.get_vertex(0);
+			auto [x, y, z] = vertices1.get_vertex(poly1_flags.back());
 			vertices1.add_vertices(x, y, z);
 			glBindVertexArray(VAO[0]);
 			glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
 			glBufferData(GL_ARRAY_BUFFER, vertices1.size(), vertices1.get_buffer_address(), GL_STATIC_DRAW);
-			current_state++;
 
-			Polygon poly;
-			poly.add_loop(vertices1.get_vertex_tuple_vector());
-			poly.print_polygon_message();
+			poly1_flags.push_back(vertices1.count);
 		}
 		else if (current_state == 1) {
-			auto [x, y, z] = vertices2.get_vertex(0);
+			auto [x, y, z] = vertices2.get_vertex(poly2_flags.back());
 			vertices2.add_vertices(x, y, z);
 			glBindVertexArray(VAO[1]);
 			glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
 			glBufferData(GL_ARRAY_BUFFER, vertices2.size(), vertices2.get_buffer_address(), GL_STATIC_DRAW);
-			current_state++;
+
+			poly2_flags.push_back(vertices2.count);
 		}
 	}
-		}
+		
+}
 
 int main()
 {
@@ -210,14 +221,24 @@ int main()
 		glUseProgram(redShader.ID);
 		glBindVertexArray(VAO[0]); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
 		glDrawArrays(GL_POINTS, 0, vertices1.count);
-		glDrawArrays(GL_LINE_STRIP, 0, vertices1.count);
+		for (int i = 1; i < poly1_flags.size(); i++)
+			glDrawArrays(GL_LINE_STRIP, poly1_flags[i - 1], poly1_flags[i] - poly1_flags[i - 1]);
+		if (poly1_flags.back() < vertices1.count - 1)
+			glDrawArrays(GL_LINE_STRIP, poly1_flags.back(), vertices1.count - poly1_flags.back());
+
 		glBindVertexArray(0);
 
 		glUseProgram(greenShader.ID);
 		glBindVertexArray(VAO[1]);
 		glDrawArrays(GL_POINTS, 0, vertices2.count);
-		glDrawArrays(GL_LINE_STRIP, 0, vertices2.count);
+
+		for (int i = 1; i < poly2_flags.size(); i++)
+			glDrawArrays(GL_LINE_STRIP, poly2_flags[i - 1], poly2_flags[i] - poly2_flags[i - 1]);
+		if (poly2_flags.back() < vertices2.count - 1)
+			glDrawArrays(GL_LINE_STRIP, poly2_flags.back(), vertices2.count - poly2_flags.back());
+
 		glBindVertexArray(0);
+
 
 		glfwSetMouseButtonCallback(window, mouse_button_callback);
 
@@ -247,11 +268,16 @@ void processInput(GLFWwindow* window)
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 
-	if (glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS) {
-		vertices1.add_vertices(0.6, 0.6, 0);
-		glBindVertexArray(VAO[0]);
-		glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
-		glBufferData(GL_ARRAY_BUFFER, vertices1.size(), vertices1.get_buffer_address(), GL_STATIC_DRAW);
+	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
+		current_state = 0;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) {
+		current_state = 1;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+		is_inner_state = not is_inner_state;
 	}
 }
 

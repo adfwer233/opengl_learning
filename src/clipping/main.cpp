@@ -51,6 +51,10 @@ public:
 		vertices[count * 3 + 2] = z;
 		count++;
 	}
+
+	std::tuple<float, float, float> get_vertex(int index) {
+		return std::make_tuple(vertices[3 * index], vertices[3 * index + 1], vertices[3 * index + 2]);
+	}
 };
 
 VerticesBuffer vertices1{
@@ -68,6 +72,9 @@ VerticesBuffer vertices2{
 
 unsigned int VBO[2], VAO[2];
 
+// 0 for first polygon, 1 for second polygon
+int current_state = 0;
+
 void mouse_button_callback(GLFWwindow* window, int button, int state, int mod) {
 	int height, width;
 	glfwGetWindowSize(window, &width, &height);
@@ -77,12 +84,39 @@ void mouse_button_callback(GLFWwindow* window, int button, int state, int mod) {
 		glfwGetCursorPos(window, &x, &y);
 		std::cout << x / width << ' ' << y / height << ' ' << width << ' ' << height << std::endl;
 
-		vertices1.add_vertices(x / width * 2 - 1, 1 - y / height * 2, 0);
-		glBindVertexArray(VAO[0]);
-		glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
-		glBufferData(GL_ARRAY_BUFFER, vertices1.size(), vertices1.get_buffer_address(), GL_STATIC_DRAW);
+		if (current_state == 0) {
+			vertices1.add_vertices(x / width * 2 - 1, 1 - y / height * 2, 0);
+			glBindVertexArray(VAO[0]);
+			glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
+			glBufferData(GL_ARRAY_BUFFER, vertices1.size(), vertices1.get_buffer_address(), GL_STATIC_DRAW);
+		}
+		else if (current_state == 1) {
+			vertices2.add_vertices(x / width * 2 - 1, 1 - y / height * 2, 0);
+			glBindVertexArray(VAO[1]);
+			glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
+			glBufferData(GL_ARRAY_BUFFER, vertices2.size(), vertices2.get_buffer_address(), GL_STATIC_DRAW);
+		}
 	}
-}
+
+	if (button == GLFW_MOUSE_BUTTON_RIGHT and state == GLFW_PRESS) {
+		if (current_state == 0) {
+			auto [x, y, z] = vertices1.get_vertex(0);
+			vertices1.add_vertices(x, y, z);
+			glBindVertexArray(VAO[0]);
+			glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
+			glBufferData(GL_ARRAY_BUFFER, vertices1.size(), vertices1.get_buffer_address(), GL_STATIC_DRAW);
+			current_state++;
+		}
+		else if (current_state == 1) {
+			auto [x, y, z] = vertices2.get_vertex(0);
+			vertices2.add_vertices(x, y, z);
+			glBindVertexArray(VAO[1]);
+			glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
+			glBufferData(GL_ARRAY_BUFFER, vertices2.size(), vertices2.get_buffer_address(), GL_STATIC_DRAW);
+			current_state++;
+		}
+	}
+		}
 
 int main()
 {
@@ -168,7 +202,8 @@ int main()
 
 		glUseProgram(greenShader.ID);
 		glBindVertexArray(VAO[1]);
-		glDrawArrays(GL_TRIANGLES, 0, vertices2.count);
+		glDrawArrays(GL_POINTS, 0, vertices2.count);
+		glDrawArrays(GL_LINE_STRIP, 0, vertices2.count);
 		glBindVertexArray(0);
 
 		glfwSetMouseButtonCallback(window, mouse_button_callback);

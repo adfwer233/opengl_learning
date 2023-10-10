@@ -76,11 +76,10 @@ void Polygon::add_loop(std::vector<std::tuple<float, float, float>> vertices, bo
 
 	edges_list.push_back(edge);
 
-
 	edge->face = is_inner ? nullptr : polygon;
 	edge_twin->face = is_inner ? polygon : nullptr;
 
-	vertices_list.back()->edge = edges_list.front();
+	vertices_list.back()->edge = edges_list.back();
 	vertices_list.back()->face = polygon;
 
 	edges_list.back()->succ = edges_list.front();

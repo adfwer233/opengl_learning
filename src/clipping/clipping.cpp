@@ -1,4 +1,6 @@
 #include "clipping.hxx"
+#include "common/intersector.hxx"
+#include "common/containment.hxx"
 
 Polygon Weiler_Atherton::weiler_atherton_algorithm(Polygon& poly, Polygon& window) {
 	std::map<half_edge_vertex*, half_edge_vertex*> partner_map;
@@ -133,6 +135,18 @@ Polygon Weiler_Atherton::weiler_atherton_algorithm(Polygon& poly, Polygon& windo
 
 		result.add_loop(result_vertices);
 	}
+
+	// Step 3:
+
+	for (auto loop: poly.polygon->loops)
+		if (not is_loop_polygon_intersected(loop, window))
+			if (point_in_polygon(Point2d{ loop.start->vertex->x, loop.start->vertex->y }, window))
+				result.add_half_edge_loop(loop);
+
+	for (auto loop: window.polygon->loops)
+		if (not is_loop_polygon_intersected(loop, poly))
+			if (point_in_polygon(Point2d{ loop.start->vertex->x, loop.start->vertex->y }, poly))
+				result.add_half_edge_loop(loop);
 
 	return result;
 }

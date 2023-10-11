@@ -18,5 +18,7 @@ struct Polygon {
 
 	void add_loop(std::vector<std::tuple<float, float, float>> vertices, bool is_inner = false);
 
+	void add_half_edge_loop(half_edge_loop loop);
+
 	std::vector<half_edge_edge*> get_all_edges();
 };

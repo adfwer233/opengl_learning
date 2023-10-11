@@ -104,3 +104,17 @@ std::vector<half_edge_edge*> Polygon::get_all_edges() {
 
 	return result;
 }
+
+void Polygon::add_half_edge_loop(half_edge_loop loop) {
+	std::vector<std::tuple<float, float, float>> vertices;
+
+	auto start = loop.start;
+	auto current = start;
+	while (true) {
+		vertices.push_back(std::make_tuple(current->vertex->x, current->vertex->y, 0));
+		current = current->succ;
+		if (current == start) break;
+	}
+
+	this->add_loop(vertices);
+}

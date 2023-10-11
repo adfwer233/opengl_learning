@@ -26,3 +26,5 @@ std::vector<Point2d> polygon_intersect_points(Polygon& poly1, Polygon& poly2);
             a bool is used to represent whether this point is "into point"
 */
 std::vector<std::tuple<Point2d, bool>> intersect_segment_polygon(Point2d a, Point2d b, Polygon& poly);
+
+bool is_loop_polygon_intersected(half_edge_loop loop, Polygon &poly);

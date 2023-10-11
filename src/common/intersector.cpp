@@ -41,15 +41,15 @@ std::vector<Point2d> polygon_intersect_points(Polygon& poly1, Polygon& poly2) {
 
 				while (true) {
 					auto [flag, x, y] = line_segment_intersector(
-						{cur_edge1->vertex->x, cur_edge1->vertex->y},
-						{cur_edge1->twin->vertex->x, cur_edge1->twin->vertex->y},
-						{cur_edge2->vertex->x, cur_edge2->vertex->y},
-						{cur_edge2->twin->vertex->x, cur_edge2->twin->vertex->y}
+						{ cur_edge1->vertex->x, cur_edge1->vertex->y },
+						{ cur_edge1->twin->vertex->x, cur_edge1->twin->vertex->y },
+						{ cur_edge2->vertex->x, cur_edge2->vertex->y },
+						{ cur_edge2->twin->vertex->x, cur_edge2->twin->vertex->y }
 					);
 
 					if (flag)
-						result.push_back(Point2d{x, y});
-					
+						result.push_back(Point2d{ x, y });
+
 					cur_edge2 = cur_edge2->succ;
 					if (cur_edge2 == loop2_start) break;
 				}
@@ -64,22 +64,22 @@ std::vector<Point2d> polygon_intersect_points(Polygon& poly1, Polygon& poly2) {
 	return result;
 }
 
-std::vector<std::tuple<Point2d, bool>> intersect_segment_polygon(Point2d a, Point2d b, Polygon &poly) {
+std::vector<std::tuple<Point2d, bool>> intersect_segment_polygon(Point2d a, Point2d b, Polygon& poly) {
 	std::vector<std::tuple<Point2d, bool>> result;
 
 	auto edges = poly.get_all_edges();
 
 	auto [ax, ay] = a;
 	auto [bx, by] = b;
-	
-	for (auto edge: edges) {
+
+	for (auto edge : edges) {
 		auto [flag, x, y] = line_segment_intersector(
-			a, b, {edge->vertex->x, edge->vertex->y}, {edge->twin->vertex->x, edge->twin->vertex->y}
+			a, b, { edge->vertex->x, edge->vertex->y }, { edge->twin->vertex->x, edge->twin->vertex->y }
 		);
 
 		if (flag) {
 			auto tmp = outer_product(edge->vertex->x - ax, edge->vertex->y - ay, bx - ax, by - ay);
-			result.push_back(std::make_tuple(Point2d{x, y}, tmp > 0));
+			result.push_back(std::make_tuple(Point2d{ x, y }, tmp > 0));
 		}
 	}
 
@@ -87,7 +87,27 @@ std::vector<std::tuple<Point2d, bool>> intersect_segment_polygon(Point2d a, Poin
 		Point2d p1 = std::get<0>(t1);
 		Point2d p2 = std::get<0>(t2);
 		return abs(p1.x - ax) < abs(p2.x - ax);
-	});
+		});
 
 	return result;
+}
+
+bool is_loop_polygon_intersected(half_edge_loop loop, Polygon& poly) {
+	auto start = loop.start;
+	auto current = start;
+	while (true) {
+
+		auto inter_res = intersect_segment_polygon(
+			Point2d{ current->vertex->x, current->vertex->y },
+			Point2d{ current->twin->vertex->x, current->twin->vertex->y },
+			poly
+		);
+
+		if (inter_res.size() > 0) return true;
+
+		current = current->succ;
+		if (start == current) break;
+	}
+
+	return false;
 }

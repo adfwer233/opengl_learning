@@ -34,8 +34,8 @@ MeshModel Constructor::Sphere(Point3d center, double radius) {
             double phi = 2 * pi * (1.0f * j / theta_segments);
 
             float x = std::sin(theta) * std::cos(phi);
-            float z = std::cos(theta) * std::cos(phi);
-            float y = std::cos(theta);
+            float y = std::sin(theta) * std::sin(phi);
+            float z = std::cos(theta);
 
             model.vertices.push_back({x, y, z});
         }

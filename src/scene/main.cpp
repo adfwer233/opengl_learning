@@ -1,6 +1,10 @@
 ﻿#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include <format>
 #include <iostream>
 #include "common/constructor/constructor.hxx"
@@ -74,7 +78,15 @@ int main() {
 		glClearColor(0.9, 1, 1, 1);
 		glClear(GL_COLOR_BUFFER_BIT);
 
+        glm::mat4 transform = glm::mat4(1.0f);
+        transform = glm::scale(transform, glm::vec3(0.8, 0.8, 0.8));
+        transform = glm::rotate(transform, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
+
         glUseProgram(shader.ID);
+
+        unsigned int transformLoc = glGetUniformLocation(shader.ID, "transform");
+        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
+
         glBindVertexArray(VAO);
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glDrawElements(GL_TRIANGLES, sphere.faces_indices.size() * 3, GL_UNSIGNED_INT, 0);

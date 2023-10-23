@@ -4,6 +4,10 @@
 
 #include "common/constructor/constructor.hxx"
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 MeshModel Constructor::Cubic(Point3d point1, Point3d Point2d) {
     MeshModel model;
 
@@ -51,6 +55,10 @@ MeshModel Constructor::Sphere(Point3d center, double radius) {
             model.faces_indices.push_back({ind(i, j), ind(i + 1, j + 1), ind(i, j + 1)});
         }
     }
+
+
+    model.transform = glm::translate(model.transform, glm::vec3(center.x, center.y, center.z));
+    model.transform = glm::scale(model.transform, glm::vec3(radius, radius, radius));
 
     return model;
 }

@@ -8,4 +8,6 @@ set(GLAD_FILE ${CMAKE_SOURCE_DIR}/src/glad/glad.c)
 
 add_subdirectory(src/clipping)
 
+add_subdirectory(src/scene)
+
 add_subdirectory(src/common)

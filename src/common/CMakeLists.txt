@@ -2,7 +2,8 @@ project(common CXX C)
 
 set(CMAKE_CXX_STANDARD 20)
 
-set(SOURCE_FILE "shader.cpp" "intersector.cpp" "polygon.cpp" "point.cpp" "containment.cpp")
+set(SOURCE_FILE "shader.cpp" "intersector.cpp" "polygon.cpp" "point.cpp" "containment.cpp"
+        constructor/constructor.cpp)
 
 include_directories(${OPENGL_INCLUDE})
 

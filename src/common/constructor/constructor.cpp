@@ -8,12 +8,37 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-MeshModel Constructor::Cubic(Point3d point1, Point3d Point2d) {
+MeshModel Constructor::Cubic(Point3d point1, Point3d point2) {
     MeshModel model;
 
+    auto a = point2.x - point1.x;
+    auto b = point2.y - point1.y;
+    auto c = point2.z - point1.z;
+
     std::vector<Point3d> vertice {
-        point1
+        Point3d{point1.x, point1.y, point1.z},
+        Point3d{point1.x + a, point1.y, point1.z},
+        Point3d{point1.x, point1.y + b, point1.z},
+        Point3d{point1.x + a, point1.y + b, point1.z},
+        Point3d{point1.x, point1.y, point1.z + c},
+        Point3d{point1.x + a, point1.y, point1.z + c},
+        Point3d{point1.x, point1.y + b, point1.z + c},
+        Point3d{point1.x + a, point1.y + b, point1.z + c},
     };
+
+    std::vector<TriangleVerticeIndex> index {
+        {0, 1, 2}, {1, 2, 3},   // bottom
+        {4, 5, 6}, {5, 6, 7},   // top
+        {0, 2, 4}, {0, 6, 2},   // left
+        {1, 5, 3}, {3, 5, 7},   // right
+        {0, 1, 4}, {1, 4, 5},   // front
+        {2, 3, 6}, {3, 6, 7}    // back
+    };
+
+    model.vertices = vertice;
+    model.faces_indices = index;
+
+    model.transform = glm::mat4(1.0f);
 
     return model;
 }

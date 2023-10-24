@@ -52,14 +52,18 @@ int main() {
 	}
 
 	glEnable(GL_PROGRAM_POINT_SIZE);
+	glEnable(GL_DEPTH_TEST);
 
-    MeshModel sphere = Constructor::Sphere(Point3d(0, 0 ,0), 0.2);
-    MeshModel sphere2 = Constructor::Sphere(Point3d(-0.5, -0.5, 0.5), 0.2);
+    MeshModel sphere = Constructor::Sphere(Point3d(0.5, 0.5 ,-1), 0.2);
+    MeshModel sphere2 = Constructor::Sphere(Point3d(-0.5, -0.5, 1), 0.2);
 
     unsigned int VBO[3], VAO[3], EBO[3];
-    glGenVertexArrays(2, VAO);
-    glGenBuffers(2, VBO);
-    glGenBuffers(2, EBO);
+
+	const int ent_num = 3;
+
+    glGenVertexArrays(ent_num, VAO);
+    glGenBuffers(ent_num, VBO);
+    glGenBuffers(ent_num, EBO);
 
 	auto bind_mesh = [&](int index, MeshModel &model) {
 		glBindVertexArray(VAO[index]);
@@ -74,11 +78,12 @@ int main() {
 		glEnableVertexAttribArray(0);
 	};
 
-    Shader shader(std::format("{}/simple.vs", SHADER_DIR), std::format("{}/green.fs", SHADER_DIR));
+    Shader greenShader(std::format("{}/simple.vs", SHADER_DIR), std::format("{}/green.fs", SHADER_DIR));
+    Shader redShader(std::format("{}/simple.vs", SHADER_DIR), std::format("{}/red.fs", SHADER_DIR));
 	view = glm::translate(view, glm::vec3(0, 0, -3.0));
 	projection = glm::perspective(glm::radians(45.0f), 1.0f * SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
 
-	auto processMeshModel = [&](int index, MeshModel &model) {
+	auto processMeshModel = [&](int index, MeshModel &model, Shader &shader) {
         glm::mat4 transform = glm::mat4(1.0f);
         transform = glm::rotate(model.transform, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
 
@@ -94,13 +99,16 @@ int main() {
         glUniformMatrix4fv(projectionTransformLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
         glBindVertexArray(VAO[index]);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glDrawElements(GL_TRIANGLES, model.faces_indices.size() * 3, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
 	};
 
+	auto cubic = Constructor::Cubic({-0.3, -0.3, -0.3}, {0.3, 0.3, 0.3});
+
 	bind_mesh(0, sphere);
 	bind_mesh(1, sphere2);
+	bind_mesh(2, cubic);
 
     std::cout << "Construct finish " << std::endl;
 
@@ -109,11 +117,12 @@ int main() {
 		processInput(window);
 
 		glClearColor(0.9, 1, 1, 1);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		processMeshModel(0, sphere);
-		processMeshModel(1, sphere2);
-
+		processMeshModel(0, sphere, greenShader);
+		processMeshModel(1, sphere2, greenShader);
+		processMeshModel(2, cubic, redShader);
+		
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}

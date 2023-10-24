@@ -7,6 +7,8 @@
 
 #include <format>
 #include <iostream>
+
+#include "common/camera/camera.hxx"
 #include "common/constructor/constructor.hxx"
 #include "common/mesh_model.hxx"
 #include "common/shader.hxx"
@@ -18,18 +20,72 @@
 const unsigned int SCR_WIDTH = 1024;
 const unsigned int SCR_HEIGHT = 1024;
 
+glm::mat4 view = glm::mat4(1.0f);
+glm::mat4 projection = glm::mat4(1.0f);
+
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
+
+Camera camera(glm::vec3(0.5, 0.5, 5.0f), glm::vec3(0, 1.0f, 0));
+
 void processInput(GLFWwindow* window) {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
+
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        camera.process_keyboard(FORWARD, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        camera.process_keyboard(BACKWARD, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        camera.process_keyboard(LEFT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        camera.process_keyboard(RIGHT, deltaTime);
 }
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height)
-{
+void scroll_callback(GLFWwindow* window, double x_offset, double y_offset) {
+    camera.process_mouse_scroll(y_offset);
+}
+
+bool is_mouse_pressing = false;
+bool mouse_flag = true;
+
+void mouse_button_callback(GLFWwindow* window, int button, int state, int mod) {
+    if (button == GLFW_MOUSE_BUTTON_LEFT and state == GLFW_PRESS)
+        is_mouse_pressing = true;
+    if (button == GLFW_MOUSE_BUTTON_LEFT and state == GLFW_RELEASE) {
+        mouse_flag = true;
+        is_mouse_pressing = false;
+    }
+}
+
+
+float last_x = SCR_WIDTH / 2.0f;
+float last_y = SCR_HEIGHT / 2.0f;
+
+void mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
+    if (not is_mouse_pressing) return;
+
+    float x_pos = static_cast<float>(xposIn);
+    float y_pos = static_cast<float>(yposIn);
+
+    if (mouse_flag) {
+        last_x = x_pos;
+        last_y = y_pos;
+        mouse_flag = false;
+    }
+
+    float x_offset = x_pos - last_x;
+    float y_offset = last_y - y_pos; // reversed since y-coordinates go from bottom to top
+
+    last_x = x_pos;
+    last_y = y_pos;
+
+    camera.process_mouse_movement(x_offset, y_offset);
+}
+
+void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 	glViewport(0, 0, width, height);
 }
-
-glm::mat4 view = glm::mat4(1.0f);
-glm::mat4 projection = glm::mat4(1.0f);
 
 int main() {
 
@@ -46,6 +102,10 @@ int main() {
 
 	glfwMakeContextCurrent(window);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetScrollCallback(window, scroll_callback);
+
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
 
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
 		return -1;
@@ -80,31 +140,32 @@ int main() {
 
     Shader greenShader(std::format("{}/simple.vs", SHADER_DIR), std::format("{}/green.fs", SHADER_DIR));
     Shader redShader(std::format("{}/simple.vs", SHADER_DIR), std::format("{}/red.fs", SHADER_DIR));
-	view = glm::translate(view, glm::vec3(0, 0, -3.0));
-	projection = glm::perspective(glm::radians(45.0f), 1.0f * SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
 
-	auto processMeshModel = [&](int index, MeshModel &model, Shader &shader) {
+
+    auto processMeshModel = [&](int index, MeshModel &model, Shader &shader) {
         glm::mat4 transform = glm::mat4(1.0f);
-        transform = glm::rotate(model.transform, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
+//        transform = glm::rotate(model.transform, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
+
+        projection = glm::perspective(glm::radians(camera.zoom), 1.0f * SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
 
         glUseProgram(shader.ID);
 
         unsigned int transformLoc = glGetUniformLocation(shader.ID, "transform");
-        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
+        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(model.transform));
 
         unsigned int viewTransformLoc = glGetUniformLocation(shader.ID, "view");
-        glUniformMatrix4fv(viewTransformLoc, 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(viewTransformLoc, 1, GL_FALSE, glm::value_ptr(camera.get_view_transformation()));
 
 		unsigned int projectionTransformLoc = glGetUniformLocation(shader.ID, "projection");
         glUniformMatrix4fv(projectionTransformLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
         glBindVertexArray(VAO[index]);
-        // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glDrawElements(GL_TRIANGLES, model.faces_indices.size() * 3, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
 	};
 
-	auto cubic = Constructor::Cubic({-0.3, -0.3, -0.3}, {0.3, 0.3, 0.3});
+    auto cubic = Constructor::Cubic({-0.3, -0.3, -0.3}, {0.3, 0.3, 0.3});
 
 	bind_mesh(0, sphere);
 	bind_mesh(1, sphere2);
@@ -112,8 +173,11 @@ int main() {
 
     std::cout << "Construct finish " << std::endl;
 
-
     while (not glfwWindowShouldClose(window)) {
+        float currentFrame = static_cast<float>(glfwGetTime());
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
 		processInput(window);
 
 		glClearColor(0.9, 1, 1, 1);

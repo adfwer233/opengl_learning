@@ -11,34 +11,44 @@
 MeshModel Constructor::Cubic(Point3d point1, Point3d point2) {
     MeshModel model;
 
+    // generate tri mesh for a rectangle
+
+    constexpr int segment = 50;
+
+    auto mesh_rectangle = [&](Point3d base, Point3d vec_x, Point3d vec_y) {
+        decltype(model.vertices) vertices;
+        decltype(model.faces_indices) indices;
+
+        auto dx = vec_x / segment;
+        auto dy = vec_y / segment;
+
+        for (int i: std::views::iota(0, segment + 1)) {
+            for (int j: std::views::iota(0, segment + 1)) {
+                auto v = base + dx * i + dy * j;
+                vertices.push_back(v);
+            }
+        }
+
+        for (unsigned int i = 0; i < segment; i++) {
+            for (unsigned int j = 0; j < segment; j++) {
+                auto ind = [&](auto x, auto y) {
+                    return x * (segment + 1) + y;
+                };
+                indices.push_back({ind(i, j), ind(i + 1, j), ind(i + 1, j + 1)});
+                indices.push_back({ind(i, j), ind(i + 1, j + 1), ind(i, j + 1)});
+            }
+        }
+
+        std::ranges::copy(vertices, std::back_inserter(model.vertices));
+        std::ranges::copy(indices, std::back_inserter(model.faces_indices));
+
+    };
+
     auto a = point2.x - point1.x;
     auto b = point2.y - point1.y;
     auto c = point2.z - point1.z;
 
-    std::vector<Point3d> vertice {
-        Point3d{point1.x, point1.y, point1.z},
-        Point3d{point1.x + a, point1.y, point1.z},
-        Point3d{point1.x, point1.y + b, point1.z},
-        Point3d{point1.x + a, point1.y + b, point1.z},
-        Point3d{point1.x, point1.y, point1.z + c},
-        Point3d{point1.x + a, point1.y, point1.z + c},
-        Point3d{point1.x, point1.y + b, point1.z + c},
-        Point3d{point1.x + a, point1.y + b, point1.z + c},
-    };
-
-    std::vector<TriangleVerticeIndex> index {
-        {0, 1, 2}, {1, 2, 3},   // bottom
-        {4, 5, 6}, {5, 6, 7},   // top
-        {0, 2, 4}, {0, 6, 2},   // left
-        {1, 5, 3}, {3, 5, 7},   // right
-        {0, 1, 4}, {1, 4, 5},   // front
-        {2, 3, 6}, {3, 6, 7}    // back
-    };
-
-    model.vertices = vertice;
-    model.faces_indices = index;
-
-    model.transform = glm::mat4(1.0f);
+    mesh_rectangle({point1.x, point1.y, point1.z + c}, {a, 0, 0}, {0, b, 0});
 
     return model;
 }

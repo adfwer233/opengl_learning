@@ -40,6 +40,10 @@ void processInput(GLFWwindow* window) {
         camera.process_keyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.process_keyboard(RIGHT, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        camera.process_keyboard(UP, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        camera.process_keyboard(DOWN, deltaTime);
 }
 
 void scroll_callback(GLFWwindow* window, double x_offset, double y_offset) {

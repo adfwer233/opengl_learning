@@ -17,8 +17,6 @@ void Camera::process_mouse_scroll(float offset) {
 void Camera::process_keyboard(CameraMovement direction, float deltaTime) {
     float velocity = move_speed * deltaTime;
 
-    std::cout << direction << std::endl;
-
     if (direction == FORWARD)
         position += camera_front * velocity;
     if (direction == BACKWARD)
@@ -27,7 +25,11 @@ void Camera::process_keyboard(CameraMovement direction, float deltaTime) {
         position -= camera_right_axis * velocity;
     if (direction == RIGHT)
         position += camera_right_axis * velocity;
-
+    if (direction == DOWN)
+        position -= camera_up_axis * velocity;
+    if (direction == UP)
+        position += camera_up_axis * velocity;
+        
     update_camera_vectors();
 }
 

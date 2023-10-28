@@ -31,13 +31,15 @@ MeshModel Constructor::Cubic(Point3d point1, Point3d point2) {
 
         for (unsigned int i = 0; i < segment; i++) {
             for (unsigned int j = 0; j < segment; j++) {
-                auto ind = [&](auto x, auto y) {
-                    return x * (segment + 1) + y;
+                auto ind = [&](auto x, auto y) -> unsigned int {
+                    return x * (segment + 1) + y + model.vertices.size();
                 };
                 indices.push_back({ind(i, j), ind(i + 1, j), ind(i + 1, j + 1)});
                 indices.push_back({ind(i, j), ind(i + 1, j + 1), ind(i, j + 1)});
             }
         }
+
+        std::cout << model.vertices.size() << ' ' << vertices.size() << ' ' << model.faces_indices.size() << std::endl;
 
         std::ranges::copy(vertices, std::back_inserter(model.vertices));
         std::ranges::copy(indices, std::back_inserter(model.faces_indices));
@@ -48,6 +50,11 @@ MeshModel Constructor::Cubic(Point3d point1, Point3d point2) {
     auto b = point2.y - point1.y;
     auto c = point2.z - point1.z;
 
+    mesh_rectangle({point1.x, point1.y, point1.z}, {a, 0, 0}, {0, b, 0});
+    mesh_rectangle({point1.x, point1.y, point1.z}, {a, 0, 0}, {0, 0, c});
+    mesh_rectangle({point1.x, point1.y, point1.z}, {0, b, 0}, {0, 0, c});
+    mesh_rectangle({point1.x + a, point1.y, point1.z}, {0, b, 0}, {0, 0, c});
+    mesh_rectangle({point1.x, point1.y + b, point1.z}, {a, 0, 0}, {0, 0, c});
     mesh_rectangle({point1.x, point1.y, point1.z + c}, {a, 0, 0}, {0, b, 0});
 
     return model;

@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(SRC_FILE "main.cpp")
 
 add_definitions(-DSHADER_DIR=\\"${CMAKE_CURRENT_SOURCE_DIR}/shader\\")
+add_definitions(-DSKYBOX_DIR=\\"${CMAKE_CURRENT_SOURCE_DIR}/skybox\\")
 
 include_directories(${OPENGL_INCLUDE})
 

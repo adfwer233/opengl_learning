@@ -12,9 +12,14 @@
 #include "common/constructor/constructor.hxx"
 #include "common/mesh_model.hxx"
 #include "common/shader.hxx"
+#include "common/skybox/skybox.h"
 
 #ifndef SHADER_DIR
 #define SHADER_DIR "./shader"
+#endif
+
+#ifndef SKYBOX_DIR
+#define SKYBOX_DIR "./skybox"
 #endif
 
 const unsigned int SCR_WIDTH = 1024;
@@ -225,6 +230,24 @@ int main() {
     
     std::cout << "Construct finish " << std::endl;
 
+    std::vector<std::string> faces
+    {
+        std::format("{}/right.jpg", SKYBOX_DIR),
+        std::format("{}/left.jpg", SKYBOX_DIR),
+        std::format("{}/top.jpg", SKYBOX_DIR),
+        std::format("{}/bottom.jpg", SKYBOX_DIR),
+        std::format("{}/front.jpg", SKYBOX_DIR),
+        std::format("{}/back.jpg", SKYBOX_DIR)
+    };
+
+    SkyBox skybox;
+    skybox.load_cube_map(faces);
+    skybox.bind();
+
+    Shader skybox_shader(std::format("{}/simple.vs", SKYBOX_DIR), std::format("{}/simple.fs", SKYBOX_DIR));
+    skybox_shader.use();
+    skybox_shader.set_int("skybox", 0);
+
     while (not glfwWindowShouldClose(window)) {
         float currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
@@ -278,6 +301,19 @@ int main() {
         processMeshModel(2, cubic, shader);
         processMeshModel(3, cubic2, shader);
         processMeshModel(4, light_src, shader, glm::vec3(10, 10, 10));
+
+        glDepthMask(GL_LEQUAL);
+        skybox_shader.use();
+        unsigned int transformLoc = glGetUniformLocation(skybox_shader.ID, "model");
+        auto scale = glm::mat4(1.0f);
+        scale = glm::scale(scale, glm::vec3(10.0f));
+        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(scale));
+        unsigned int viewTransformLoc = glGetUniformLocation(skybox_shader.ID, "view");
+        glUniformMatrix4fv(viewTransformLoc, 1, GL_FALSE, glm::value_ptr(camera.get_view_transformation()));
+		unsigned int projectionTransformLoc = glGetUniformLocation(skybox_shader.ID, "projection");
+        glUniformMatrix4fv(projectionTransformLoc, 1, GL_FALSE, glm::value_ptr(projection));
+        skybox.rendering();
+        glDepthMask(GL_LESS);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();

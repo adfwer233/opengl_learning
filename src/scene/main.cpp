@@ -133,17 +133,20 @@ int main() {
 		glBindVertexArray(VAO[index]);
 		glBindBuffer(GL_ARRAY_BUFFER, VBO[index]);
 
-		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Point3d), model.vertices.data(), GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Point3d) * 2, model.vertices.data(), GL_STATIC_DRAW);
 
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO[index]);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, model.faces_indices.size() * sizeof(TriangleVerticeIndex), model.faces_indices.data(), GL_STATIC_DRAW);
 
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
 		glEnableVertexAttribArray(0);
+
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(0);
 	};
 
-    Shader greenShader(std::format("{}/simple.vs", SHADER_DIR), std::format("{}/green.fs", SHADER_DIR));
-    Shader redShader(std::format("{}/simple.vs", SHADER_DIR), std::format("{}/red.fs", SHADER_DIR));
+    Shader greenShader(std::format("{}/lighting.vs", SHADER_DIR), std::format("{}/lighting.fs", SHADER_DIR));
+    Shader redShader(std::format("{}/lighting.vs", SHADER_DIR), std::format("{}/lighting.fs", SHADER_DIR));
 
 
     auto processMeshModel = [&](int index, MeshModel &model, Shader &shader) {
@@ -152,9 +155,13 @@ int main() {
 
         projection = glm::perspective(glm::radians(camera.zoom), 1.0f * SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
 
-        glUseProgram(shader.ID);
+        shader.use();
+        shader.set_vec3("objectColor",glm::vec3(1.0f, 0.0f, 0.5f));
+        shader.set_vec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
+        shader.set_vec3("lightPos", glm::vec3(1.5, 1.5f, 1.5f));
+        shader.set_vec3("viewPos", camera.position);
 
-        unsigned int transformLoc = glGetUniformLocation(shader.ID, "transform");
+        unsigned int transformLoc = glGetUniformLocation(shader.ID, "model");
         glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(model.transform));
 
         unsigned int viewTransformLoc = glGetUniformLocation(shader.ID, "view");
@@ -164,7 +171,7 @@ int main() {
         glUniformMatrix4fv(projectionTransformLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
         glBindVertexArray(VAO[index]);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glDrawElements(GL_TRIANGLES, model.faces_indices.size() * 3, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
 	};
@@ -184,7 +191,7 @@ int main() {
 
 		processInput(window);
 
-		glClearColor(0.9, 1, 1, 1);
+		glClearColor(0.1, 0.1, 0.1, 1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		processMeshModel(0, sphere, greenShader);

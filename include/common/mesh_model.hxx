@@ -14,9 +14,13 @@ struct TriangleVerticeIndex {
     unsigned int x, y, z;
 };
 
+struct TriangleWithNormal {
+    Point3d point, normal;
+};
+
 struct MeshModel {
 
-    std::vector<Point3d> vertices;
+    std::vector<TriangleWithNormal> vertices;
     std::vector<TriangleVerticeIndex> faces_indices;
 
     glm::mat4 transform;

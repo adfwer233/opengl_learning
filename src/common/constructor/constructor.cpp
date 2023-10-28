@@ -25,7 +25,7 @@ MeshModel Constructor::Cubic(Point3d point1, Point3d point2) {
         for (int i: std::views::iota(0, segment + 1)) {
             for (int j: std::views::iota(0, segment + 1)) {
                 auto v = base + dx * i + dy * j;
-                vertices.push_back(v);
+                vertices.push_back({v, Point3d::outer_product(vec_x, vec_y)});
             }
         }
 
@@ -83,7 +83,7 @@ MeshModel Constructor::Sphere(Point3d center, double radius) {
             float y = std::sin(theta) * std::sin(phi);
             float z = std::cos(theta);
 
-            model.vertices.push_back({x, y, z});
+            model.vertices.push_back({{x, y, z}, {x, y, z}});
         }
     }
 

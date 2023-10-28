@@ -1,9 +1,10 @@
 #pragma once
 
 #include "../glad/glad.h"
-#include<iostream>
-#include<fstream>
-#include<string>
+#include <glm/glm.hpp>
+#include <iostream>
+#include <fstream>
+#include <string>
 
 class Shader {
     public:
@@ -11,4 +12,11 @@ class Shader {
 
         // construct shader from .vs and .fs files
         Shader(const std::string vertexPath, const std::string fragmentPath);
+
+        void use() const;
+
+        void set_vec3(const std::string &name, const glm::vec3 &value);
+
+        void set_vec4(const std::string &name, const glm::vec4 &value);
+
 };

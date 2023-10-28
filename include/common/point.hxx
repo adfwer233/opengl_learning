@@ -25,6 +25,10 @@ struct Point3d {
     Point3d operator / (T c) const requires requires (T a) { x / a; } {
         return Point3d { x / c, y / c, z / c};
     }
+
+    static Point3d outer_product(Point3d a, Point3d b) {
+        return Point3d { a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x };
+    }
 };
 
 float inner_product(Point2d u, Point2d v);

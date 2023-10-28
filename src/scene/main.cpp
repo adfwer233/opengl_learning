@@ -121,9 +121,9 @@ int main() {
     MeshModel sphere = Constructor::Sphere(Point3d(0.5, 0.5 ,-1), 0.2);
     MeshModel sphere2 = Constructor::Sphere(Point3d(-0.5, -0.5, 1), 0.2);
 
-    unsigned int VBO[3], VAO[3], EBO[3];
+    unsigned int VBO[10], VAO[10], EBO[10];
 
-	const int ent_num = 3;
+	const int ent_num = 4;
 
     glGenVertexArrays(ent_num, VAO);
     glGenBuffers(ent_num, VBO);
@@ -142,7 +142,7 @@ int main() {
 		glEnableVertexAttribArray(0);
 
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
 	};
 
     Shader greenShader(std::format("{}/lighting.vs", SHADER_DIR), std::format("{}/lighting.fs", SHADER_DIR));
@@ -158,7 +158,7 @@ int main() {
         shader.use();
         shader.set_vec3("objectColor",glm::vec3(1.0f, 0.0f, 0.5f));
         shader.set_vec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
-        shader.set_vec3("lightPos", glm::vec3(1.5, 1.5f, 1.5f));
+        shader.set_vec3("lightPos", glm::vec3(1.5f, 1.5f, 1.5f));
         shader.set_vec3("viewPos", camera.position);
 
         unsigned int transformLoc = glGetUniformLocation(shader.ID, "model");
@@ -176,11 +176,13 @@ int main() {
         glBindVertexArray(0);
 	};
 
-    auto cubic = Constructor::Cubic({-0.3, -0.3, -0.3}, {0.3, 0.3, 0.3});
+    auto cubic = Constructor::Cubic({0, 0, 0}, {0.3, 0.3, 0.3});
+    auto cubic2 = Constructor::Cubic({-0.3, -0.3, -0.3}, {0, 0, 0});
 
 	bind_mesh(0, sphere);
 	bind_mesh(1, sphere2);
 	bind_mesh(2, cubic);
+    bind_mesh(3, cubic2);
 
     std::cout << "Construct finish " << std::endl;
 
@@ -197,6 +199,7 @@ int main() {
 		processMeshModel(0, sphere, greenShader);
 		processMeshModel(1, sphere2, greenShader);
 		processMeshModel(2, cubic, redShader);
+        processMeshModel(3, cubic2, redShader);
 		
 		glfwSwapBuffers(window);
 		glfwPollEvents();

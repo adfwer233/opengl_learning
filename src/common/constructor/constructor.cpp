@@ -15,7 +15,7 @@ MeshModel Constructor::Cubic(Point3d point1, Point3d point2) {
 
     constexpr int segment = 50;
 
-    auto mesh_rectangle = [&](Point3d base, Point3d vec_x, Point3d vec_y) {
+    auto mesh_rectangle = [&](Point3d base, Point3d vec_x, Point3d vec_y, Point3d norm) {
         decltype(model.vertices) vertices;
         decltype(model.faces_indices) indices;
 
@@ -25,7 +25,7 @@ MeshModel Constructor::Cubic(Point3d point1, Point3d point2) {
         for (int i: std::views::iota(0, segment + 1)) {
             for (int j: std::views::iota(0, segment + 1)) {
                 auto v = base + dx * i + dy * j;
-                vertices.push_back({v, Point3d::outer_product(vec_x, vec_y)});
+                vertices.push_back({v, norm});
             }
         }
 
@@ -50,12 +50,14 @@ MeshModel Constructor::Cubic(Point3d point1, Point3d point2) {
     auto b = point2.y - point1.y;
     auto c = point2.z - point1.z;
 
-    mesh_rectangle({point1.x, point1.y, point1.z}, {a, 0, 0}, {0, b, 0});
-    mesh_rectangle({point1.x, point1.y, point1.z}, {a, 0, 0}, {0, 0, c});
-    mesh_rectangle({point1.x, point1.y, point1.z}, {0, b, 0}, {0, 0, c});
-    mesh_rectangle({point1.x + a, point1.y, point1.z}, {0, b, 0}, {0, 0, c});
-    mesh_rectangle({point1.x, point1.y + b, point1.z}, {a, 0, 0}, {0, 0, c});
-    mesh_rectangle({point1.x, point1.y, point1.z + c}, {a, 0, 0}, {0, b, 0});
+    mesh_rectangle({point1.x, point1.y, point1.z}, {a, 0, 0}, {0, b, 0}, {0, 0, -1});
+    mesh_rectangle({point1.x, point1.y, point1.z}, {a, 0, 0}, {0, 0, c}, {0, -1, 0});
+    mesh_rectangle({point1.x, point1.y, point1.z}, {0, b, 0}, {0, 0, c}, {-1, 0, 0});
+    mesh_rectangle({point1.x + a, point1.y, point1.z}, {0, b, 0}, {0, 0, c}, {1, 0, 0});
+    mesh_rectangle({point1.x, point1.y + b, point1.z}, {a, 0, 0}, {0, 0, c}, {0, 1, 0});
+    mesh_rectangle({point1.x, point1.y, point1.z + c}, {a, 0, 0}, {0, b, 0}, {0, 0, 1});
+
+    model.transform = glm::mat4(1.0f);
 
     return model;
 }

@@ -20,6 +20,9 @@
 const unsigned int SCR_WIDTH = 1024;
 const unsigned int SCR_HEIGHT = 1024;
 
+constexpr unsigned int SHADOW_WIDTH = 2048;
+constexpr unsigned int SHADOW_HEIGHT = 2048;
+
 glm::mat4 view = glm::mat4(1.0f);
 glm::mat4 projection = glm::mat4(1.0f);
 
@@ -118,12 +121,35 @@ int main() {
 	glEnable(GL_PROGRAM_POINT_SIZE);
 	glEnable(GL_DEPTH_TEST);
 
+
+    // Frame Buffer Binding
+    GLuint depth_map_FBO;
+    glGenFramebuffers(1, &depth_map_FBO);
+
+    GLuint depth_map;
+    glGenTextures(1, &depth_map);
+    glBindTexture(GL_TEXTURE_2D, depth_map);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, depth_map_FBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depth_map, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    glm::vec3 lightPos(1.5, 1.5, 1.5);
+
     MeshModel sphere = Constructor::Sphere(Point3d(0.5, 0.5 ,-1), 0.2);
     MeshModel sphere2 = Constructor::Sphere(Point3d(-0.5, -0.5, 1), 0.2);
+    MeshModel light_src = Constructor::Sphere(Point3d(lightPos.x, lightPos.y, lightPos.z), 0.1);
 
     unsigned int VBO[10], VAO[10], EBO[10];
 
-	const int ent_num = 4;
+	const int ent_num = 5;
 
     glGenVertexArrays(ent_num, VAO);
     glGenBuffers(ent_num, VBO);
@@ -145,18 +171,27 @@ int main() {
         glEnableVertexAttribArray(1);
 	};
 
-    Shader greenShader(std::format("{}/lighting.vs", SHADER_DIR), std::format("{}/lighting.fs", SHADER_DIR));
-    Shader redShader(std::format("{}/lighting.vs", SHADER_DIR), std::format("{}/lighting.fs", SHADER_DIR));
+    Shader shader(std::format("{}/lighting.vs", SHADER_DIR), std::format("{}/lighting.fs", SHADER_DIR));
+    Shader shadow_map_shader(std::format("{}/shadow.vs", SHADER_DIR), std::format("{}/shadow.fs", SHADER_DIR));
+    Shader debug_shadow_shader(std::format("{}/debug_shadow.vs", SHADER_DIR), std::format("{}/debug_shadow.fs", SHADER_DIR));
+    
+    auto processMeshModelShadow = [&](int index, MeshModel &model, Shader &shader) {
+        shader.use();
+        unsigned int transformLoc = glGetUniformLocation(shader.ID, "model");
+        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(model.transform));
+        glBindVertexArray(VAO[index]);
+        glDrawElements(GL_TRIANGLES, model.faces_indices.size() * 3, GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
+	};
 
-
-    auto processMeshModel = [&](int index, MeshModel &model, Shader &shader) {
+    auto processMeshModel = [&](int index, MeshModel &model, Shader &shader, glm::vec3 color = glm::vec3(1.0f, 0.0f, 0.5f)) {
         glm::mat4 transform = glm::mat4(1.0f);
 //        transform = glm::rotate(model.transform, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
 
         projection = glm::perspective(glm::radians(camera.zoom), 1.0f * SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
 
         shader.use();
-        shader.set_vec3("objectColor",glm::vec3(1.0f, 0.0f, 0.5f));
+        shader.set_vec3("objectColor", color);
         shader.set_vec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
         shader.set_vec3("lightPos", glm::vec3(1.5f, 1.5f, 1.5f));
         shader.set_vec3("viewPos", camera.position);
@@ -183,7 +218,11 @@ int main() {
 	bind_mesh(1, sphere2);
 	bind_mesh(2, cubic);
     bind_mesh(3, cubic2);
+    bind_mesh(4, light_src);
 
+    debug_shadow_shader.use();
+    debug_shadow_shader.set_int("depthMap", 0);
+    
     std::cout << "Construct finish " << std::endl;
 
     while (not glfwWindowShouldClose(window)) {
@@ -196,11 +235,50 @@ int main() {
 		glClearColor(0.1, 0.1, 0.1, 1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		processMeshModel(0, sphere, greenShader);
-		processMeshModel(1, sphere2, greenShader);
-		processMeshModel(2, cubic, redShader);
-        processMeshModel(3, cubic2, redShader);
+        // step1: get the depth map
+
+        glm::mat4 lightProjection, lightView;
+        glm::mat4 lightSpaceMatrix;
+        float near_plane = 1.0f, far_plane = 100.5f;
+        lightProjection = glm::perspective(glm::radians(camera.zoom), 1.0f * SCR_WIDTH / SCR_HEIGHT, near_plane, far_plane);
+        lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
+        lightSpaceMatrix = lightProjection * lightView;
+        // render scene from light's point of view
+        shadow_map_shader.use();
+        shadow_map_shader.set_mat4("lightSpaceMatrix", lightSpaceMatrix);
+
+        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+        glBindFramebuffer(GL_FRAMEBUFFER, depth_map_FBO);
+            glClear(GL_DEPTH_BUFFER_BIT);
+            glActiveTexture(GL_TEXTURE0);
+            processMeshModelShadow(0, sphere, shadow_map_shader);
+            processMeshModelShadow(1, sphere2, shadow_map_shader);
+            processMeshModelShadow(2, cubic, shadow_map_shader);
+            processMeshModelShadow(3, cubic2, shadow_map_shader);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        // reset viewport
+        glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // render Depth map to quad for visual debugging
+        // ---------------------------------------------
+        // debug_shadow_shader.use();
+        // debug_shadow_shader.set_float("near_plane", near_plane);
+        // debug_shadow_shader.set_float("far_plane", far_plane);
+        // glActiveTexture(GL_TEXTURE0);
+        // glBindTexture(GL_TEXTURE_2D, depth_map);
+        // renderQuad();
 		
+        shader.use();
+        shader.set_mat4("lightSpaceMatrix", lightSpaceMatrix);
+        
+        processMeshModel(0, sphere, shader);
+        processMeshModel(1, sphere2, shader);
+        processMeshModel(2, cubic, shader);
+        processMeshModel(3, cubic2, shader);
+        processMeshModel(4, light_src, shader, glm::vec3(10, 10, 10));
+
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}

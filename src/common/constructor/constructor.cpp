@@ -13,7 +13,7 @@ MeshModel Constructor::Cubic(Point3d point1, Point3d point2) {
 
     // generate tri mesh for a rectangle
 
-    constexpr int segment = 50;
+    constexpr int segment = 3;
 
     auto mesh_rectangle = [&](Point3d base, Point3d vec_x, Point3d vec_y, Point3d norm) {
         decltype(model.vertices) vertices;

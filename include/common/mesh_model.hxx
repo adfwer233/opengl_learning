@@ -14,29 +14,29 @@
 
 
 struct TriangleVerticeIndex {
-    unsigned int x, y, z;
+	unsigned int x, y, z;
 };
 
 struct TriangleWithNormal {
-    Point3d point, normal;
+	Point3d point, normal;
 };
 
 struct MeshModel {
 
 private:
-    AxisAlignedBoundingBox box;
+	AxisAlignedBoundingBox box;
 
 public:
-    std::vector<TriangleWithNormal> vertices;
-    std::vector<TriangleVerticeIndex> faces_indices;
+	std::vector<TriangleWithNormal> vertices;
+	std::vector<TriangleVerticeIndex> faces_indices;
 
-    glm::mat4 transform;
+	glm::mat4 transform;
 
-    MeshModel() : transform(glm::mat4(1.0f)) {}
+	MeshModel() : transform(glm::mat4(1.0f)), box(AxisAlignedBoundingBox({ 0, 0, 0 }, { 0, 0, 0 })) {}
 
-    AxisAlignedBoundingBox get_box() const;
+	AxisAlignedBoundingBox get_box() const;
 
-    static bool collision_test(MeshModel model1, MeshModel model2);
-    
-    friend Constructor;
+	static bool collision_test(MeshModel model1, MeshModel model2);
+
+	friend class Constructor;
 };

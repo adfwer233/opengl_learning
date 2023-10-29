@@ -23,6 +23,8 @@
 #define SKYBOX_DIR "./skybox"
 #endif
 
+bool enable_filter = false;
+
 const unsigned int SCR_WIDTH = 1024;
 const unsigned int SCR_HEIGHT = 1024;
 
@@ -53,6 +55,10 @@ void processInput(GLFWwindow* window) {
 		camera.process_keyboard(UP, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
 		camera.process_keyboard(DOWN, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
+		enable_filter = false;
+	if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
+		enable_filter = true;
 }
 
 void scroll_callback(GLFWwindow* window, double x_offset, double y_offset) {
@@ -127,8 +133,12 @@ int main() {
 	glEnable(GL_PROGRAM_POINT_SIZE);
 	glEnable(GL_DEPTH_TEST);
 
+	Shader shader(std::format("{}/lighting.vs", SHADER_DIR), std::format("{}/lighting.fs", SHADER_DIR));
+	Shader shadow_map_shader(std::format("{}/shadow.vs", SHADER_DIR), std::format("{}/shadow.fs", SHADER_DIR));
+	Shader debug_shadow_shader(std::format("{}/debug_shadow.vs", SHADER_DIR), std::format("{}/debug_shadow.fs", SHADER_DIR));
+	Shader screenShader(std::format("{}/filter.vs", SHADER_DIR), std::format("{}/filter.fs", SHADER_DIR));
 
-	// Frame Buffer Binding
+	// Frame Buffer Binding for shadow map
 	GLuint depth_map_FBO;
 	glGenFramebuffers(1, &depth_map_FBO);
 
@@ -147,6 +157,54 @@ int main() {
 	glReadBuffer(GL_NONE);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+	// Frame buffer binding for filter
+
+    unsigned int framebuffer;
+    glGenFramebuffers(1, &framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    // create a color attachment texture
+    unsigned int textureColorbuffer;
+    glGenTextures(1, &textureColorbuffer);
+    glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
+    // create a renderbuffer object for depth and stencil attachment (we won't be sampling these)
+    unsigned int rbo;
+    glGenRenderbuffers(1, &rbo);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, SCR_WIDTH, SCR_HEIGHT); // use a single renderbuffer object for both a depth AND stencil buffer.
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo); // now actually attach it
+    // now that we actually created the framebuffer and added all attachments we want to check if it is actually complete now
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
+	float quad_vertices[] = { // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
+		// positions   // texCoords
+		-1.0f,  1.0f,  0.0f, 1.0f,
+		-1.0f, -1.0f,  0.0f, 0.0f,
+		 1.0f, -1.0f,  1.0f, 0.0f,
+
+		-1.0f,  1.0f,  0.0f, 1.0f,
+		 1.0f, -1.0f,  1.0f, 0.0f,
+		 1.0f,  1.0f,  1.0f, 1.0f
+	};
+	std::cout << sizeof(quad_vertices) << std::endl;
+
+    unsigned int quadVAO, quadVBO;
+    glGenVertexArrays(1, &quadVAO);
+    glGenBuffers(1, &quadVBO);
+    glBindVertexArray(quadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quad_vertices), &quad_vertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+	// set light position
 	glm::vec3 lightPos(-7, 7, -10);
 
 	MeshModel sphere = Constructor::Sphere(Point3d(1.5, 0, 0), 0.2);
@@ -176,10 +234,6 @@ int main() {
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
 		glEnableVertexAttribArray(1);
 		};
-
-	Shader shader(std::format("{}/lighting.vs", SHADER_DIR), std::format("{}/lighting.fs", SHADER_DIR));
-	Shader shadow_map_shader(std::format("{}/shadow.vs", SHADER_DIR), std::format("{}/shadow.fs", SHADER_DIR));
-	Shader debug_shadow_shader(std::format("{}/debug_shadow.vs", SHADER_DIR), std::format("{}/debug_shadow.fs", SHADER_DIR));
 
 	auto processMeshModelShadow = [&](int index, MeshModel& model, Shader& shader) {
 		shader.use();
@@ -251,6 +305,9 @@ int main() {
 	skybox_shader.use();
 	skybox_shader.set_int("skybox", 0);
 
+    screenShader.use();
+    screenShader.set_int("screenTexture", 0);
+
 	// simulation initialization
 
 	auto field_function = [](glm::vec3 pos) -> glm::vec3 {
@@ -258,7 +315,10 @@ int main() {
 		//     return glm::normalize(glm::vec3(0, 0, -pos.z));
         // else 
         auto len = glm::length(pos);
-        return glm::normalize(-pos) / (len * len);
+		if (len > 0.1)
+        	return glm::normalize(-pos) / (len * len);
+		else 
+			return pos;
 	};
 
 	VectorField field(field_function);
@@ -306,11 +366,6 @@ int main() {
 
 		processInput(window);
 
-		glClearColor(0.1, 0.1, 0.1, 1);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		// step1: get the depth map
-
 		glm::mat4 lightProjection, lightView;
 		glm::mat4 lightSpaceMatrix;
 		float near_plane = 1.0f, far_plane = 100.5f;
@@ -321,22 +376,34 @@ int main() {
 		shadow_map_shader.use();
 		shadow_map_shader.set_mat4("lightSpaceMatrix", lightSpaceMatrix);
 
-		glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 		glBindFramebuffer(GL_FRAMEBUFFER, depth_map_FBO);
+		glEnable(GL_DEPTH_TEST);
+		glClearColor(0.1, 0.1, 0.1, 1);
+		glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		// step1: render the shadow map
+
+
 		glClear(GL_DEPTH_BUFFER_BIT);
-		glActiveTexture(GL_TEXTURE0);
 		processMeshModelShadow(0, sphere, shadow_map_shader);
 		processMeshModelShadow(1, sphere2, shadow_map_shader);
 		processMeshModelShadow(2, cubic, shadow_map_shader);
 		processMeshModelShadow(3, cubic2, shadow_map_shader);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-		// reset viewport
-		glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		// step2: render the scene
 
 		shader.use();
 		shader.set_mat4("lightSpaceMatrix", lightSpaceMatrix);
+
+		if (enable_filter)
+			glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+		glEnable(GL_DEPTH_TEST);
+		glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		glBindTexture(GL_TEXTURE_2D, depth_map);
 
 		processMeshModel(0, sphere, shader);
 		processMeshModel(1, sphere2, shader);
@@ -356,6 +423,20 @@ int main() {
 		glUniformMatrix4fv(projectionTransformLoc, 1, GL_FALSE, glm::value_ptr(projection));
 		skybox.rendering();
 		glDepthMask(GL_LESS);
+
+		if (enable_filter) {
+			glBindFramebuffer(GL_FRAMEBUFFER, 0); // 返回默认
+			glDisable(GL_DEPTH_TEST);
+			glClearColor(1.0f, 1.0f, 1.0f, 1.0f); 
+			glClear(GL_COLOR_BUFFER_BIT);
+
+			screenShader.use();  
+			glBindVertexArray(quadVAO);
+			glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+			glDrawArrays(GL_TRIANGLES, 0, 6); 
+			
+			glEnable(GL_DEPTH_TEST);
+		}
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();

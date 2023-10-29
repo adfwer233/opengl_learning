@@ -149,7 +149,7 @@ int main() {
 
 	glm::vec3 lightPos(-7, 7, -10);
 
-	MeshModel sphere = Constructor::Sphere(Point3d(0.5, 0.5, -1), 0.2);
+	MeshModel sphere = Constructor::Sphere(Point3d(1.5, 0, 0), 0.2);
 	MeshModel sphere2 = Constructor::Sphere(Point3d(-0.5, -0.5, 1), 0.2);
 	MeshModel light_src = Constructor::Sphere(Point3d(lightPos.x, lightPos.y, lightPos.z), 0.1);
 
@@ -217,8 +217,8 @@ int main() {
 		glBindVertexArray(0);
 		};
 
-	auto cubic = Constructor::Cubic({ 0, 0, 0 }, { 0.3, 0.3, 0.3 });
-	auto cubic2 = Constructor::Cubic({ -0.3, -0.3, -0.3 }, { 0, 0, 0 });
+	auto cubic = Constructor::Cubic({ -0.3, -0.3, -0.3 }, { 0.3, 0.3, 0.3 });
+	auto cubic2 = Constructor::Cubic({ -1.6, -0.3, -1.6 }, { -1.3, 0.3, -1.3 });
 
 	bind_mesh(0, sphere);
 	bind_mesh(1, sphere2);
@@ -257,21 +257,53 @@ int main() {
         // if (pos.z > 0)
 		//     return glm::normalize(glm::vec3(0, 0, -pos.z));
         // else 
-        return glm::normalize(glm::vec3(0, 0, 1));
+        auto len = glm::length(pos);
+        return glm::normalize(-pos) / (len * len);
 	};
 
 	VectorField field(field_function);
 
 	SolidEntity cubic_entity;
-	cubic_entity.model = std::optional<std::reference_wrapper<MeshModel>>{ sphere };
+	cubic_entity.model = std::optional<std::reference_wrapper<MeshModel>>{ cubic };
+
+	SolidEntity cubic_entity2;
+	cubic_entity2.model = std::optional<std::reference_wrapper<MeshModel>>{ cubic2 };
+	
+	SolidEntity sphere_entity;
+	sphere_entity.model = std::optional<std::reference_wrapper<MeshModel>>{ sphere };
+    sphere_entity.velocity = glm::vec3(0, 0, -2);
+
+	SolidEntity sphere_entity2;
+	sphere_entity2.model = std::optional<std::reference_wrapper<MeshModel>>{ sphere2 };
+    sphere_entity2.velocity = glm::vec3(0, 1, -2);
+
+    std::vector<std::reference_wrapper<SolidEntity>> models = {
+		std::reference_wrapper{sphere_entity},
+		std::reference_wrapper{sphere_entity2},
+		std::reference_wrapper{cubic_entity},
+		std::reference_wrapper{cubic_entity2}
+	};
 
 	while (not glfwWindowShouldClose(window)) {
 		float currentFrame = static_cast<float>(glfwGetTime());
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
 
-		cubic_entity.update_in_vector_field(field, deltaTime);
-        
+		sphere_entity.update_in_vector_field(field, deltaTime);
+        sphere_entity2.update_in_vector_field(field, deltaTime);
+
+		for (size_t i = 0; i < models.size(); i++) {
+			for (size_t j = i + 1; j < models.size(); j++) {
+				bool res = MeshModel::collision_test(models[i].get().model.value().get(), models[j].get().model.value().get());
+				if (res) {
+					if (i == 2 && j == 3) continue;
+					std::cout << i << ' ' << j << std::endl;
+					models[i].get().velocity = -models[i].get().velocity;
+					models[j].get().velocity = -models[j].get().velocity;
+				}
+			}
+		}
+
 		processInput(window);
 
 		glClearColor(0.1, 0.1, 0.1, 1);

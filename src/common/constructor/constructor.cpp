@@ -106,6 +106,6 @@ MeshModel Constructor::Sphere(Point3d center, float radius) {
     model.transform = glm::translate(model.transform, glm::vec3(center.x, center.y, center.z));
     model.transform = glm::scale(model.transform, glm::vec3(radius, radius, radius));
 
-    model.box = AxisAlignedBoundingBox({center.x - radius, center.y - radius, center.z - radius}, {center.x + radius, center.y + radius, center.z + radius});
+    model.box = AxisAlignedBoundingBox({-1, -1, -1}, {1, 1, 1});
     return model;
 }

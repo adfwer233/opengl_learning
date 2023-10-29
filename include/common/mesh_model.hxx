@@ -36,7 +36,7 @@ public:
 
 	AxisAlignedBoundingBox get_box() const;
 
-	static bool collision_test(MeshModel model1, MeshModel model2);
+	static bool collision_test(MeshModel &model1, MeshModel &model2);
 
 	friend class Constructor;
 };

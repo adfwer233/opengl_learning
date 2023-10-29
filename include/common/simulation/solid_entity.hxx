@@ -16,7 +16,7 @@ public:
 
 	glm::vec3 velocity;
 
-	SolidEntity() : mass(1), mass_center(glm::vec3(0)), velocity(glm::vec3(0)) {}
+	SolidEntity() : mass(1), mass_center(glm::vec3(0)), velocity(glm::vec3(0, 0, 0)) {}
 
 	glm::vec3 get_world_mass_center() const;
 

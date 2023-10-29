@@ -1,6 +1,10 @@
 #pragma once
 
 #include "interval.hxx"
+#include "common/point.hxx"
+
+#include <format>
+#include <ostream>
 
 struct AxisAlignedBoundingBox {
     Interval x_range;
@@ -15,3 +19,5 @@ struct AxisAlignedBoundingBox {
 
     static bool is_aabb_overlap(AxisAlignedBoundingBox box1, AxisAlignedBoundingBox box2);
 };
+
+std::ostream& operator << (std::ostream& os, AxisAlignedBoundingBox box);

@@ -59,6 +59,8 @@ MeshModel Constructor::Cubic(Point3d point1, Point3d point2) {
 
     model.transform = glm::mat4(1.0f);
 
+    model.box = AxisAlignedBoundingBox(point1, point2);
+
     return model;
 }
 
@@ -67,7 +69,7 @@ MeshModel Constructor::Cubic(Point3d point1, Point3d point2) {
  *      Step1: Generate the mesh of unit sphere
  *      Step2: Calculate the transformation of target
  */
-MeshModel Constructor::Sphere(Point3d center, double radius) {
+MeshModel Constructor::Sphere(Point3d center, float radius) {
     using namespace std::numbers;
 
     MeshModel model;
@@ -104,5 +106,6 @@ MeshModel Constructor::Sphere(Point3d center, double radius) {
     model.transform = glm::translate(model.transform, glm::vec3(center.x, center.y, center.z));
     model.transform = glm::scale(model.transform, glm::vec3(radius, radius, radius));
 
+    model.box = AxisAlignedBoundingBox({center.x - radius, center.y - radius, center.z - radius}, {center.x + radius, center.y + radius, center.z + radius});
     return model;
 }

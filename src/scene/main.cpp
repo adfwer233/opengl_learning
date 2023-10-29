@@ -146,7 +146,7 @@ int main() {
     glReadBuffer(GL_NONE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    glm::vec3 lightPos(1.5, 1.5, 1.5);
+    glm::vec3 lightPos(-7, 7, -10);
 
     MeshModel sphere = Constructor::Sphere(Point3d(0.5, 0.5 ,-1), 0.2);
     MeshModel sphere2 = Constructor::Sphere(Point3d(-0.5, -0.5, 1), 0.2);
@@ -198,7 +198,7 @@ int main() {
         shader.use();
         shader.set_vec3("objectColor", color);
         shader.set_vec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
-        shader.set_vec3("lightPos", glm::vec3(1.5f, 1.5f, 1.5f));
+        shader.set_vec3("lightPos", lightPos);
         shader.set_vec3("viewPos", camera.position);
 
         unsigned int transformLoc = glGetUniformLocation(shader.ID, "model");

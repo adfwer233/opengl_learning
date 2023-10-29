@@ -7,6 +7,7 @@ class Constructor {
 
 public:
     static MeshModel Cubic(Point3d point1, Point3d Point2d);
-    static MeshModel Sphere(Point3d center, double radius);
-    
+
+    static MeshModel Sphere(Point3d center, float radius);
+
 };

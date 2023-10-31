@@ -7,6 +7,10 @@
 
 #include <format>
 #include <iostream>
+#include <filesystem>
+#include <ranges>
+#include <fstream>
+#include <array>
 
 #include "common/camera/camera.hxx"
 #include "common/constructor/constructor.hxx"
@@ -106,7 +110,30 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 	glViewport(0, 0, width, height);
 }
 
-int main() {
+int main(int argc, char **argv) {
+
+    std::string config_path_str = "";
+    
+    std::string shader_root = SHADER_DIR;
+    std::string skybox_root = SKYBOX_DIR;
+
+    if (argc >= 2) {
+        config_path_str = std::string(argv[1]);
+    }
+
+    if (argc >= 3) shader_root = std::string(argv[2]);
+    if (argc >= 4) skybox_root = std::string(argv[3]);
+
+    std::cout << std::format("config path: {}\n", config_path_str);
+
+    std::filesystem::path config_path(config_path_str);
+    
+    std::fstream config_fstream;
+    config_fstream.open(config_path_str, std::ios::in);
+    int config_ent_num = 0;
+    config_fstream >> config_ent_num;
+    std::cout << config_ent_num << std::endl;
+
 
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -133,10 +160,10 @@ int main() {
 	glEnable(GL_PROGRAM_POINT_SIZE);
 	glEnable(GL_DEPTH_TEST);
 
-	Shader shader(std::format("{}/lighting.vs", SHADER_DIR), std::format("{}/lighting.fs", SHADER_DIR));
-	Shader shadow_map_shader(std::format("{}/shadow.vs", SHADER_DIR), std::format("{}/shadow.fs", SHADER_DIR));
-	Shader debug_shadow_shader(std::format("{}/debug_shadow.vs", SHADER_DIR), std::format("{}/debug_shadow.fs", SHADER_DIR));
-	Shader screenShader(std::format("{}/filter.vs", SHADER_DIR), std::format("{}/filter.fs", SHADER_DIR));
+	Shader shader(std::format("{}/lighting.vs", shader_root), std::format("{}/lighting.fs", shader_root));
+	Shader shadow_map_shader(std::format("{}/shadow.vs", shader_root), std::format("{}/shadow.fs", shader_root));
+	Shader debug_shadow_shader(std::format("{}/debug_shadow.vs", shader_root), std::format("{}/debug_shadow.fs", shader_root));
+	Shader screenShader(std::format("{}/filter.vs", shader_root), std::format("{}/filter.fs", shader_root));
 
 	// Frame Buffer Binding for shadow map
 	GLuint depth_map_FBO;
@@ -213,19 +240,21 @@ int main() {
 
 	unsigned int VBO[10], VAO[10], EBO[10];
 
-	const int ent_num = 5;
+	const int ent_num = 10;
 
 	glGenVertexArrays(ent_num, VAO);
 	glGenBuffers(ent_num, VBO);
 	glGenBuffers(ent_num, EBO);
 
-	auto bind_mesh = [&](int index, MeshModel& model) {
-		glBindVertexArray(VAO[index]);
-		glBindBuffer(GL_ARRAY_BUFFER, VBO[index]);
+    int entity_count = 0;
+
+	auto bind_mesh = [&](MeshModel& model) {
+		glBindVertexArray(VAO[entity_count]);
+		glBindBuffer(GL_ARRAY_BUFFER, VBO[entity_count]);
 
 		glBufferData(GL_ARRAY_BUFFER, model.vertices.size() * sizeof(Point3d) * 2, model.vertices.data(), GL_STATIC_DRAW);
 
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO[index]);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO[entity_count]);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, model.faces_indices.size() * sizeof(TriangleVerticeIndex), model.faces_indices.data(), GL_STATIC_DRAW);
 
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
@@ -233,18 +262,21 @@ int main() {
 
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
 		glEnableVertexAttribArray(1);
+
+        model.render_id = entity_count;
+        entity_count += 1;
 		};
 
-	auto processMeshModelShadow = [&](int index, MeshModel& model, Shader& shader) {
+	auto processMeshModelShadow = [&](MeshModel& model, Shader& shader) {
 		shader.use();
 		unsigned int transformLoc = glGetUniformLocation(shader.ID, "model");
 		glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(model.transform));
-		glBindVertexArray(VAO[index]);
+		glBindVertexArray(VAO[model.render_id]);
 		glDrawElements(GL_TRIANGLES, model.faces_indices.size() * 3, GL_UNSIGNED_INT, 0);
 		glBindVertexArray(0);
 		};
 
-	auto processMeshModel = [&](int index, MeshModel& model, Shader& shader, glm::vec3 color = glm::vec3(1.0f, 0.0f, 0.5f)) {
+	auto processMeshModel = [&](MeshModel& model, Shader& shader, glm::vec3 color = glm::vec3(1.0f, 0.0f, 0.5f)) {
 		glm::mat4 transform = glm::mat4(1.0f);
 		//        transform = glm::rotate(model.transform, (float)glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
 
@@ -265,7 +297,7 @@ int main() {
 		unsigned int projectionTransformLoc = glGetUniformLocation(shader.ID, "projection");
 		glUniformMatrix4fv(projectionTransformLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
-		glBindVertexArray(VAO[index]);
+		glBindVertexArray(VAO[model.render_id]);
 		//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		glDrawElements(GL_TRIANGLES, model.faces_indices.size() * 3, GL_UNSIGNED_INT, 0);
 		glBindVertexArray(0);
@@ -274,11 +306,11 @@ int main() {
 	auto cubic = Constructor::Cubic({ -0.3, -0.3, -0.3 }, { 0.3, 0.3, 0.3 });
 	auto cubic2 = Constructor::Cubic({ -1.6, -0.3, -1.6 }, { -1.3, 0.3, -1.3 });
 
-	bind_mesh(0, sphere);
-	bind_mesh(1, sphere2);
-	bind_mesh(2, cubic);
-	bind_mesh(3, cubic2);
-	bind_mesh(4, light_src);
+	bind_mesh(sphere);
+	bind_mesh(sphere2);
+	bind_mesh(cubic);
+	bind_mesh(cubic2);
+	bind_mesh(light_src);
 
 	debug_shadow_shader.use();
 	debug_shadow_shader.set_int("depthMap", 0);
@@ -289,19 +321,19 @@ int main() {
 	// sky box initialization
 	std::vector<std::string> faces
 	{
-		std::format("{}/right.jpg", SKYBOX_DIR),
-		std::format("{}/left.jpg", SKYBOX_DIR),
-		std::format("{}/top.jpg", SKYBOX_DIR),
-		std::format("{}/bottom.jpg", SKYBOX_DIR),
-		std::format("{}/front.jpg", SKYBOX_DIR),
-		std::format("{}/back.jpg", SKYBOX_DIR)
+		std::format("{}/right.jpg", skybox_root),
+		std::format("{}/left.jpg", skybox_root),
+		std::format("{}/top.jpg", skybox_root),
+		std::format("{}/bottom.jpg", skybox_root),
+		std::format("{}/front.jpg", skybox_root),
+		std::format("{}/back.jpg", skybox_root)
 	};
 
 	SkyBox skybox;
 	skybox.load_cube_map(faces);
 	skybox.bind();
 
-	Shader skybox_shader(std::format("{}/simple.vs", SKYBOX_DIR), std::format("{}/simple.fs", SKYBOX_DIR));
+	Shader skybox_shader(std::format("{}/simple.vs", skybox_root), std::format("{}/simple.fs", skybox_root));
 	skybox_shader.use();
 	skybox_shader.set_int("skybox", 0);
 
@@ -335,7 +367,7 @@ int main() {
 
 	SolidEntity sphere_entity2;
 	sphere_entity2.model = std::optional<std::reference_wrapper<MeshModel>>{ sphere2 };
-    sphere_entity2.velocity = glm::vec3(0, 1, -2);
+    sphere_entity2.velocity = glm::vec3(0, 1.5, -2);
 
     std::vector<std::reference_wrapper<SolidEntity>> models = {
 		std::reference_wrapper{sphere_entity},
@@ -343,6 +375,20 @@ int main() {
 		std::reference_wrapper{cubic_entity},
 		std::reference_wrapper{cubic_entity2}
 	};
+
+    std::array<MeshModel, 100> config_model;
+    std::array<SolidEntity, 100> config_solid;
+
+    for (auto i: std::views::iota(0, config_ent_num)) {
+        float ax, ay, az, bx, by, bz;
+        config_fstream >> ax >> ay >> az >> bx >> by >> bz;
+        std::cout << std::format("{} {} {} {} {} {}\n", ax, ay, az, bx, by, bz);
+        config_model[i] = Constructor::Cubic({ax, ay ,az}, {bx, by, bz});
+        bind_mesh(config_model[i]);
+        config_solid[i].model = std::optional<std::reference_wrapper<MeshModel>>{config_model[i]};
+        config_solid[i].velocity = glm::vec3(0.0);
+        models.push_back(std::reference_wrapper{config_solid[i]});
+    }
 
 	while (not glfwWindowShouldClose(window)) {
 		float currentFrame = static_cast<float>(glfwGetTime());
@@ -357,7 +403,7 @@ int main() {
 				bool res = MeshModel::collision_test(models[i].get().model.value().get(), models[j].get().model.value().get());
 				if (res) {
 					if (i == 2 && j == 3) continue;
-					std::cout << i << ' ' << j << std::endl;
+					std::cout << std::format("物体 {} 和 {} 发生碰撞 \n", i, j);
 					models[i].get().velocity = -models[i].get().velocity;
 					models[j].get().velocity = -models[j].get().velocity;
 				}
@@ -386,10 +432,13 @@ int main() {
 
 
 		glClear(GL_DEPTH_BUFFER_BIT);
-		processMeshModelShadow(0, sphere, shadow_map_shader);
-		processMeshModelShadow(1, sphere2, shadow_map_shader);
-		processMeshModelShadow(2, cubic, shadow_map_shader);
-		processMeshModelShadow(3, cubic2, shadow_map_shader);
+		processMeshModelShadow(sphere, shadow_map_shader);
+		processMeshModelShadow(sphere2, shadow_map_shader);
+		processMeshModelShadow(cubic, shadow_map_shader);
+		processMeshModelShadow(cubic2, shadow_map_shader);
+        for (int i: std::views::iota(0, config_ent_num)) {
+            processMeshModelShadow(config_model[i], shadow_map_shader);
+        }
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		// step2: render the scene
@@ -405,12 +454,15 @@ int main() {
 
 		glBindTexture(GL_TEXTURE_2D, depth_map);
 
-		processMeshModel(0, sphere, shader);
-		processMeshModel(1, sphere2, shader);
-		processMeshModel(2, cubic, shader);
-		processMeshModel(3, cubic2, shader);
-		processMeshModel(4, light_src, shader, glm::vec3(10, 10, 10));
+		processMeshModel(sphere, shader);
+		processMeshModel(sphere2, shader);
+		processMeshModel(cubic, shader);
+		processMeshModel(cubic2, shader);
+		processMeshModel(light_src, shader, glm::vec3(10, 10, 10));
 
+        for (int i: std::views::iota(0, config_ent_num)) {
+            processMeshModel(config_model[i], shader);
+        }
 		glDepthMask(GL_LEQUAL);
 		skybox_shader.use();
 		unsigned int transformLoc = glGetUniformLocation(skybox_shader.ID, "model");

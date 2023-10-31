@@ -32,6 +32,8 @@ public:
 
 	glm::mat4 transform;
 
+	int render_id;
+
 	MeshModel() : transform(glm::mat4(1.0f)), box(AxisAlignedBoundingBox({ 0, 0, 0 }, { 0, 0, 0 })) {}
 
 	AxisAlignedBoundingBox get_box() const;

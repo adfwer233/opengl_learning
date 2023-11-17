@@ -133,6 +133,32 @@ void MeshModel::process_rendering(Shader& shader, Camera camera, unsigned int de
     glBindVertexArray(0);
 }
 
+void MeshModel::process_environment_reflection_rendering(Shader& shader, Camera camera, unsigned int skybox_texture) {
+    auto projection = glm::perspective(glm::radians(camera.zoom), 1.0f * 1024 / 1024, 0.1f, 100.0f);
+
+    shader.use();
+    shader.set_vec3("cameraPos", camera.position);
+
+    unsigned int transformLoc = glGetUniformLocation(shader.ID, "model");
+    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(this->transform));
+
+    unsigned int viewTransformLoc = glGetUniformLocation(shader.ID, "view");
+    glUniformMatrix4fv(viewTransformLoc, 1, GL_FALSE, glm::value_ptr(camera.get_view_transformation()));
+
+    unsigned int projectionTransformLoc = glGetUniformLocation(shader.ID, "projection");
+    glUniformMatrix4fv(projectionTransformLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+    shader.set_int("use_texture", this->use_texture ? 1 : 0);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, skybox_texture);
+
+    glBindVertexArray(this->VAO);
+    glDrawElements(GL_TRIANGLES, faces_indices.size() * 3, GL_UNSIGNED_INT, 0);
+
+    glBindVertexArray(0);
+}
+
 void MeshModel::bind_texture(std::string texture_path) {
     // read the texture image
 

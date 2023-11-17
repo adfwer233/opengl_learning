@@ -60,4 +60,6 @@ public:
     void bind_texture_with_alpha(std::string texture_path);
 
     float get_distance(glm::vec3 pos) const;
+
+    void process_environment_reflection_rendering(Shader &shader, Camera camera, unsigned int skybox_texture);
 };

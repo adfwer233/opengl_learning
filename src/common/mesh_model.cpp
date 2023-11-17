@@ -158,3 +158,36 @@ void MeshModel::bind_texture(std::string texture_path) {
 
     stbi_image_free(data);
 }
+
+void MeshModel::bind_texture_with_alpha(std::string texture_path) {
+    int width, height, nrChannels;
+    unsigned char *data = stbi_load(texture_path.c_str(), &width, &height, &nrChannels, 0);
+
+    if (data == nullptr) {
+        std::cout << "read image failed" << std::endl;
+        return;
+    }
+
+    this->use_texture = true;
+
+    glGenTextures(1, &this->texture);
+    glBindTexture(GL_TEXTURE_2D, this->texture);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    stbi_image_free(data);
+}
+
+float MeshModel::get_distance(glm::vec3 pos) const {
+    if (vertices.empty()) return 0;
+
+    auto point = vertices[0].point;
+    glm::vec3 sample_pos{point.x, point.y, point.z};
+
+    sample_pos = this->transform * glm::vec4(sample_pos, 1.0);
+
+    return (sample_pos - pos).length();
+}

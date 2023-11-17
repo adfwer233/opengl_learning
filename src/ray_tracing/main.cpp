@@ -164,6 +164,9 @@ int main(int argc, char **argv) {
     glEnable(GL_PROGRAM_POINT_SIZE);
     glEnable(GL_DEPTH_TEST);
 
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
     Shader shader(std::format("{}/lighting.vs", shader_root), std::format("{}/lighting.fs", shader_root));
     Shader shadow_map_shader(std::format("{}/shadow.vs", shader_root), std::format("{}/shadow.fs", shader_root));
     Shader screenShader(std::format("{}/filter.vs", shader_root), std::format("{}/filter.fs", shader_root));
@@ -221,13 +224,17 @@ int main(int argc, char **argv) {
     MeshModel cubic = Constructor::Cubic({ -0.3, -0.3, -0.3 }, { 0.3, 0.3, 0.3 });
     MeshModel cubic2 = Constructor::Cubic({ -1.6, -0.3, -1.6 }, { -1.3, 0.3, -1.3 });
 
+    MeshModel mirror = Constructor::Rectangle({-1, -1, 1}, {-1, 1, 1}, {1, -1, 1});
+
     int entity_count = 0;
 
 
-    std::vector<std::reference_wrapper<MeshModel>> mesh_models{ sphere, sphere2, cubic, cubic2 };
+    std::vector<std::reference_wrapper<MeshModel>> mesh_models{ sphere, sphere2, cubic, cubic2, mirror };
     std::ranges::for_each(mesh_models, [](std::reference_wrapper<MeshModel> &x){x.get().bind_buffer();});
 
     cubic.bind_texture(std::format("{}/container.jpg", TEXTURE_DIR));
+    mirror.bind_texture_with_alpha(std::format("{}/mirror.png", TEXTURE_DIR));
+
 //    sphere.bind_texture(std::format("{}/container.jpg", TEXTURE_DIR));
 
 //    std::ranges::for_each(mesh_models, [](auto x){ x.get().bind_texture(std::format("{}/container.jpg", TEXTURE_DIR)); });
@@ -300,8 +307,6 @@ int main(int argc, char **argv) {
         glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        std::ranges::for_each(mesh_models, [&](std::reference_wrapper<MeshModel> model){ model.get().process_rendering(shader, camera, depth_map, lightPos); });
-        light_src.process_rendering(shader, camera, depth_map, lightPos, glm::vec3(10, 10, 10));
 
         glDepthMask(GL_LEQUAL);
         skybox_shader.use();
@@ -316,6 +321,10 @@ int main(int argc, char **argv) {
         glUniformMatrix4fv(projectionTransformLoc, 1, GL_FALSE, glm::value_ptr(projection));
         skybox.rendering();
         glDepthMask(GL_LESS);
+
+        std::ranges::sort(mesh_models, [](auto &x, auto &y){ return x.get().get_distance(camera.position) < y.get().get_distance(camera.position); });
+        std::ranges::for_each(mesh_models, [&](std::reference_wrapper<MeshModel> model){ model.get().process_rendering(shader, camera, depth_map, lightPos); });
+        light_src.process_rendering(shader, camera, depth_map, lightPos, glm::vec3(10, 10, 10));
 
         if (enable_filter) {
             glBindFramebuffer(GL_FRAMEBUFFER, 0); // 返回默认

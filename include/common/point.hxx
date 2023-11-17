@@ -1,8 +1,11 @@
 #pragma once
 #include <concepts>
+#include "glm/glm.hpp"
 
 struct Point2d {
     float x, y;
+
+    glm::vec2 to_glm();
 };
 
 struct Point3d {
@@ -29,6 +32,8 @@ struct Point3d {
     static Point3d outer_product(Point3d a, Point3d b) {
         return Point3d { a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x };
     }
+
+    glm::vec3 to_glm();
 };
 
 float inner_product(Point2d u, Point2d v);

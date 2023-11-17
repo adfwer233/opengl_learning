@@ -56,4 +56,8 @@ public:
 	static bool collision_test(MeshModel &model1, MeshModel &model2);
 
 	friend class Constructor;
+
+    void bind_texture_with_alpha(std::string texture_path);
+
+    float get_distance(glm::vec3 pos) const;
 };

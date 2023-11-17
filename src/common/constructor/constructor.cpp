@@ -110,3 +110,29 @@ MeshModel Constructor::Sphere(Point3d center, float radius) {
     model.box = AxisAlignedBoundingBox({-1, -1, -1}, {1, 1, 1});
     return model;
 }
+
+MeshModel Constructor::Rectangle(glm::vec3 left_bot, glm::vec3 left_top, glm::vec3 right_bot) {
+    auto vec1 = right_bot - left_bot;
+    auto vec2 = left_top - left_bot;
+
+    auto normal = Point3d::outer_product({vec1.x, vec1.y, vec1.z}, {vec2.x, vec2.y, vec2.z});
+
+    auto right_top = left_bot + vec1 + vec2;
+
+    MeshModel model;
+    model.vertices = {
+            {{left_bot.x, left_bot.y, left_bot.z}, normal, {0, 0}},
+            {{left_top.x, left_top.y, left_top.z}, normal, {1, 0}},
+            {{right_bot.x, right_bot.y, right_bot.z}, normal, {0, 1}},
+            {{right_top.x, right_top.y, right_top.z}, normal, {1, 1}},
+    };
+
+    model.faces_indices = {
+            {0, 1, 2},
+            {1, 2, 3}
+    };
+
+    model.transform = glm::identity<glm::mat4>();
+    model.box = AxisAlignedBoundingBox({left_bot.x, left_bot.y, left_bot.z}, {right_top.x, right_top.y, right_top.z});
+    return model;
+}

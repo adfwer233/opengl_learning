@@ -10,4 +10,5 @@ public:
 
     static MeshModel Sphere(Point3d center, float radius);
 
+    static MeshModel Rectangle(glm::vec3 left_bot, glm::vec3 left_top, glm::vec3 right_bot);
 };

@@ -2,6 +2,9 @@
 
 #include "glm/glm.hpp"
 #include "common/math/aabb.hxx"
+#include "glad/glad.h"
+#include "glm/gtc/type_ptr.hpp"
+#include "common/camera/camera.hxx"
 #include <format>
 
 AxisAlignedBoundingBox MeshModel::get_box() const {
@@ -61,4 +64,56 @@ bool MeshModel::collision_test(MeshModel &model1, MeshModel &model2) {
     // std::cout << std::format("{} {} {}", res1, res2, res3) << std::endl;
 
     return res1 > -eps and res2 > -eps and res3 > -eps;
+}
+
+void MeshModel::bind_buffer() {
+    glGenBuffers(1, &VBO);
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &EBO);
+
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Point3d) * 2, vertices.data(), GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, faces_indices.size() * sizeof(TriangleVerticeIndex), faces_indices.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+}
+
+void MeshModel::process_shadow_rendering(Shader& shader) {
+    shader.use();
+    unsigned int transformLoc = glGetUniformLocation(shader.ID, "model");
+    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(transform));
+    glBindVertexArray(VAO);
+    glDrawElements(GL_TRIANGLES, faces_indices.size() * 3, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+}
+
+void MeshModel::process_rendering(Shader& shader, Camera camera, glm::vec3 lightPos, glm::vec3 color) {
+    auto projection = glm::perspective(glm::radians(camera.zoom), 1.0f * 1024 / 1024, 0.1f, 100.0f);
+
+    shader.use();
+    shader.set_vec3("objectColor", color);
+    shader.set_vec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
+    shader.set_vec3("lightPos", lightPos);
+    shader.set_vec3("viewPos", camera.position);
+
+    unsigned int transformLoc = glGetUniformLocation(shader.ID, "model");
+    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(this->transform));
+
+    unsigned int viewTransformLoc = glGetUniformLocation(shader.ID, "view");
+    glUniformMatrix4fv(viewTransformLoc, 1, GL_FALSE, glm::value_ptr(camera.get_view_transformation()));
+
+    unsigned int projectionTransformLoc = glGetUniformLocation(shader.ID, "projection");
+    glUniformMatrix4fv(projectionTransformLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+    glBindVertexArray(this->VAO);
+    glDrawElements(GL_TRIANGLES, faces_indices.size() * 3, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
 }

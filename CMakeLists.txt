@@ -11,3 +11,5 @@ add_subdirectory(src/clipping)
 add_subdirectory(src/scene)
 
 add_subdirectory(src/common)
+
+add_subdirectory(src/ray_tracing)

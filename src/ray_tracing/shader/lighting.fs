@@ -4,14 +4,17 @@ out vec4 FragColor;
 in vec3 Normal;
 in vec3 FragPos;
 in vec4 FragPosLightSpace;
+in vec2 TextureCoord;
 
-uniform sampler2D diffuseTexture;
+uniform sampler2D myTexture;
 uniform sampler2D shadowMap;
 
 uniform vec3 lightPos;
 uniform vec3 viewPos;
 uniform vec3 lightColor;
 uniform vec3 objectColor;
+
+uniform int use_texture;
 
 float ShadowCalculation(vec4 fragPosLightSpace) {
     vec3 proj = fragPosLightSpace.xyz / fragPosLightSpace.w;
@@ -46,7 +49,13 @@ void main()
     
     float shadow = ShadowCalculation(FragPosLightSpace);
 
+    vec4 texture_res = texture(myTexture, TextureCoord);
+
     vec3 result = (ambient + (1.0 - shadow) * (diffuse + specular)) * objectColor;
 
-    FragColor = vec4(result, 1.0);
+    if (use_texture == 0) {
+        FragColor = vec4(result, 1.0);
+    } else {
+        FragColor = texture_res * vec4(result, 1.0);
+    }
 }

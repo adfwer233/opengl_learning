@@ -25,7 +25,8 @@ MeshModel Constructor::Cubic(Point3d point1, Point3d point2) {
         for (int i: std::views::iota(0, segment + 1)) {
             for (int j: std::views::iota(0, segment + 1)) {
                 auto v = base + dx * i + dy * j;
-                vertices.push_back({v, norm});
+                Point2d texture{1.0f * i / segment, 1.0f * j / segment};
+                vertices.push_back({v, norm, texture});
             }
         }
 
@@ -81,13 +82,13 @@ MeshModel Constructor::Sphere(Point3d center, float radius) {
     for (int i: std::views::iota(0, theta_segments + 1)) {
         for (int j: std::views::iota(0, phi_segments + 1)) {
             double theta = pi * (1.0f * i / theta_segments);
-            double phi = 2 * pi * (1.0f * j / theta_segments);
+            double phi = 2 * pi * (1.0f * j / phi_segments);
 
             float x = std::sin(theta) * std::cos(phi);
             float y = std::sin(theta) * std::sin(phi);
             float z = std::cos(theta);
 
-            model.vertices.push_back({{x, y, z}, {x, y, z}});
+            model.vertices.push_back({{x, y, z}, {x, y, z}, {1.0f * i / theta_segments, 1.0f * j / phi_segments }});
         }
     }
 

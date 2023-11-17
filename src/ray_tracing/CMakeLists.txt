@@ -6,6 +6,7 @@ set(SRC_FILE main.cpp)
 
 add_definitions(-DSHADER_DIR=\\"${CMAKE_CURRENT_SOURCE_DIR}/shader\\")
 add_definitions(-DSKYBOX_DIR=\\"${CMAKE_CURRENT_SOURCE_DIR}/skybox\\")
+add_definitions(-DTEXTURE_DIR=\\"${CMAKE_CURRENT_SOURCE_DIR}/texture\\")
 
 include_directories(${OPENGL_INCLUDE})
 

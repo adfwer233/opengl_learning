@@ -27,6 +27,10 @@
 #define SKYBOX_DIR "./skybox"
 #endif
 
+#ifndef TEXTURE_DIR
+#define TEXTURE_DIR "./texture"
+#endif
+
 bool enable_filter = false;
 
 const unsigned int SCR_WIDTH = 1024;
@@ -223,6 +227,11 @@ int main(int argc, char **argv) {
     std::vector<std::reference_wrapper<MeshModel>> mesh_models{ sphere, sphere2, cubic, cubic2 };
     std::ranges::for_each(mesh_models, [](std::reference_wrapper<MeshModel> &x){x.get().bind_buffer();});
 
+    cubic.bind_texture(std::format("{}/container.jpg", TEXTURE_DIR));
+//    sphere.bind_texture(std::format("{}/container.jpg", TEXTURE_DIR));
+
+//    std::ranges::for_each(mesh_models, [](auto x){ x.get().bind_texture(std::format("{}/container.jpg", TEXTURE_DIR)); });
+
     light_src.bind_buffer();
 
     // sky box initialization
@@ -246,6 +255,10 @@ int main(int argc, char **argv) {
 
     screenShader.use();
     screenShader.set_int("screenTexture", 0);
+
+    shader.use();
+    shader.set_int("shadowMap", 0);
+    shader.set_int("myTexture", 1);
 
     while (not glfwWindowShouldClose(window)) {
         float currentFrame = static_cast<float>(glfwGetTime());
@@ -287,10 +300,8 @@ int main(int argc, char **argv) {
         glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glBindTexture(GL_TEXTURE_2D, depth_map);
-
-        std::ranges::for_each(mesh_models, [&](std::reference_wrapper<MeshModel> model){ model.get().process_rendering(shader, camera, lightPos); });
-        light_src.process_rendering(shader, camera, lightPos);
+        std::ranges::for_each(mesh_models, [&](std::reference_wrapper<MeshModel> model){ model.get().process_rendering(shader, camera, depth_map, lightPos); });
+        light_src.process_rendering(shader, camera, depth_map, lightPos, glm::vec3(10, 10, 10));
 
         glDepthMask(GL_LEQUAL);
         skybox_shader.use();

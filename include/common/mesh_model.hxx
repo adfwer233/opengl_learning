@@ -21,6 +21,7 @@ struct TriangleVerticeIndex {
 
 struct TriangleWithNormal {
 	Point3d point, normal;
+    Point2d texture_coord;
 };
 
 struct MeshModel {
@@ -34,19 +35,23 @@ public:
 
 	glm::mat4 transform;
 
-	int render_id;
-
     unsigned int VBO, VAO, EBO;
 
-	MeshModel() : transform(glm::mat4(1.0f)), box(AxisAlignedBoundingBox({ 0, 0, 0 }, { 0, 0, 0 })) {}
+    unsigned int texture;
+
+    bool use_texture;
+
+	MeshModel() : transform(glm::mat4(1.0f)), box(AxisAlignedBoundingBox({ 0, 0, 0 }, { 0, 0, 0 })), use_texture(false) {}
 
 	AxisAlignedBoundingBox get_box() const;
 
     void bind_buffer();
 
+    void bind_texture(std::string texture_path);
+
     void process_shadow_rendering(Shader& shader);
 
-    void process_rendering(Shader& shader, Camera camera, glm::vec3 lightPos, glm::vec3 color = glm::vec3(1.0f, 0.0f, 0.5f));
+    void process_rendering(Shader& shader, Camera camera, unsigned int depth_map, glm::vec3 lightPos, glm::vec3 color = glm::vec3(1.0f, 0.0f, 0.0f));
 
 	static bool collision_test(MeshModel &model1, MeshModel &model2);
 

@@ -5,6 +5,7 @@
 #include "glad/glad.h"
 #include "glm/gtc/type_ptr.hpp"
 #include "common/camera/camera.hxx"
+#include "stb_image/stb_image.h"
 #include <format>
 
 AxisAlignedBoundingBox MeshModel::get_box() const {
@@ -74,16 +75,19 @@ void MeshModel::bind_buffer() {
     glBindVertexArray(VAO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Point3d) * 2, vertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(decltype(vertices)::value_type), vertices.data(), GL_STATIC_DRAW);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, faces_indices.size() * sizeof(TriangleVerticeIndex), faces_indices.data(), GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(decltype(vertices)::value_type), (void*)0);
     glEnableVertexAttribArray(0);
 
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(decltype(vertices)::value_type), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
+
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(decltype(vertices)::value_type), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
 }
 
 void MeshModel::process_shadow_rendering(Shader& shader) {
@@ -95,7 +99,7 @@ void MeshModel::process_shadow_rendering(Shader& shader) {
     glBindVertexArray(0);
 }
 
-void MeshModel::process_rendering(Shader& shader, Camera camera, glm::vec3 lightPos, glm::vec3 color) {
+void MeshModel::process_rendering(Shader& shader, Camera camera, unsigned int depth_map, glm::vec3 lightPos, glm::vec3 color) {
     auto projection = glm::perspective(glm::radians(camera.zoom), 1.0f * 1024 / 1024, 0.1f, 100.0f);
 
     shader.use();
@@ -113,7 +117,44 @@ void MeshModel::process_rendering(Shader& shader, Camera camera, glm::vec3 light
     unsigned int projectionTransformLoc = glGetUniformLocation(shader.ID, "projection");
     glUniformMatrix4fv(projectionTransformLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
+    shader.set_int("use_texture", this->use_texture ? 1 : 0);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, depth_map);
+
+    if (use_texture) {
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, this->texture);
+    }
+
     glBindVertexArray(this->VAO);
     glDrawElements(GL_TRIANGLES, faces_indices.size() * 3, GL_UNSIGNED_INT, 0);
+
     glBindVertexArray(0);
+}
+
+void MeshModel::bind_texture(std::string texture_path) {
+    // read the texture image
+
+    int width, height, nrChannels;
+    unsigned char *data = stbi_load(texture_path.c_str(), &width, &height, &nrChannels, 0);
+
+    if (data == nullptr) {
+        std::cout << "read image failed" << std::endl;
+        return;
+    }
+
+    this->use_texture = true;
+
+    glGenTextures(1, &this->texture);
+    glBindTexture(GL_TEXTURE_2D, this->texture);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    std::cout << "texture id " << this->texture << std::endl;
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    stbi_image_free(data);
 }

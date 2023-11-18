@@ -19,6 +19,7 @@
 #include "common/skybox/skybox.h"
 #include "common/simulation/solid_entity.hxx"
 #include "common/io/model_io.h"
+#include "common/io/render_output.h"
 
 #ifndef SHADER_DIR
 #define SHADER_DIR "./shader"
@@ -52,6 +53,10 @@ float lastFrame = 0.0f;
 
 Camera camera(glm::vec3(0.5, 0.5, 5.0f), glm::vec3(0, 1.0f, 0));
 
+constexpr const int n = 480;
+constexpr const int m = 600;
+std::array<std::array<glm::vec3, m>, n> image;
+
 void processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
@@ -72,6 +77,18 @@ void processInput(GLFWwindow* window) {
         enable_filter = false;
     if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
         enable_filter = true;
+    if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) {
+
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < m; j++) {
+                image[i][j] = {float(i) / n, float(j) / m, 0.2};
+            }
+        }
+
+        output_ppm_image(image);
+        std::cout << "output finish" << std::endl;
+    }
+
 }
 
 void scroll_callback(GLFWwindow* window, double x_offset, double y_offset) {

@@ -3,6 +3,7 @@ project(opengl_learning)
 set(OPENGL_INCLUDE ${CMAKE_SOURCE_DIR}/include)
 
 set(GLFW_LINK ${CMAKE_SOURCE_DIR}/lib/glfw3.lib)
+set(ASSIMP_LINK ${CMAKE_SOURCE_DIR}/lib/assimp-vc143-mt.lib)
 
 set(GLAD_FILE ${CMAKE_SOURCE_DIR}/src/glad/glad.c)
 

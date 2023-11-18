@@ -18,6 +18,7 @@
 #include "common/shader.hxx"
 #include "common/skybox/skybox.h"
 #include "common/simulation/solid_entity.hxx"
+#include "common/io/model_io.h"
 
 #ifndef SHADER_DIR
 #define SHADER_DIR "./shader"
@@ -29,6 +30,10 @@
 
 #ifndef TEXTURE_DIR
 #define TEXTURE_DIR "./texture"
+#endif
+
+#ifndef MODEL_DIR
+#define MODEL_DIR "./model"
 #endif
 
 bool enable_filter = false;
@@ -231,7 +236,6 @@ int main(int argc, char **argv) {
 
     int entity_count = 0;
 
-
     std::vector<std::reference_wrapper<MeshModel>> mesh_models{ sphere, sphere2, cubic2, mirror, mirror2 };
     std::ranges::for_each(mesh_models, [](std::reference_wrapper<MeshModel> &x){x.get().bind_buffer();});
 
@@ -240,6 +244,11 @@ int main(int argc, char **argv) {
     cubic2.bind_texture(std::format("{}/container.jpg", TEXTURE_DIR));
     mirror.bind_texture_with_alpha(std::format("{}/mirror.png", TEXTURE_DIR));
     mirror2.bind_texture_with_alpha(std::format("{}/mirror.png", TEXTURE_DIR));
+
+    auto mesh_from_obj = ModelIO::read_obj_model(std::format("{}/nanosuit.obj", MODEL_DIR));
+
+    std::ranges::for_each(mesh_from_obj, [](auto &x){ x.bind_buffer(); });
+    std::cout << mesh_from_obj.size()  << std::endl;
 
 //    sphere.bind_texture(std::format("{}/container.jpg", TEXTURE_DIR));
 
@@ -338,6 +347,7 @@ int main(int argc, char **argv) {
 
         std::ranges::sort(mesh_models, [](auto &x, auto &y){ return x.get().get_distance(camera.position) < y.get().get_distance(camera.position); });
         std::ranges::for_each(mesh_models, [&](std::reference_wrapper<MeshModel> model){ model.get().process_rendering(shader, camera, depth_map, lightPos); });
+        std::ranges::for_each(mesh_from_obj, [&](auto &x){ x.process_rendering(shader, camera, depth_map, lightPos); });
         light_src.process_rendering(shader, camera, depth_map, lightPos, glm::vec3(10, 10, 10));
 
 

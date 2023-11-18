@@ -223,7 +223,7 @@ int main(int argc, char **argv) {
 
 
     // set light position
-    glm::vec3 lightPos(-7, 7, -10);
+    glm::vec3 lightPos(-7, 7, 10);
 
     MeshModel sphere = Constructor::Sphere(Point3d(1.5, 0, 0), 0.2);
     MeshModel sphere2 = Constructor::Sphere(Point3d(-0.5, -0.5, 1), 0.2);

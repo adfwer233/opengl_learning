@@ -241,11 +241,11 @@ int main(int argc, char **argv) {
 
     cubic.bind_buffer();
 
-    cubic2.bind_texture(std::format("{}/container.jpg", TEXTURE_DIR));
-    mirror.bind_texture_with_alpha(std::format("{}/mirror.png", TEXTURE_DIR));
-    mirror2.bind_texture_with_alpha(std::format("{}/mirror.png", TEXTURE_DIR));
+    cubic2.bind_texture(std::format("{}/container.jpg", TEXTURE_DIR), diffuse_texture);
+    mirror.bind_texture_with_alpha(std::format("{}/mirror.png", TEXTURE_DIR), diffuse_texture);
+    mirror2.bind_texture_with_alpha(std::format("{}/mirror.png", TEXTURE_DIR), diffuse_texture);
 
-    auto mesh_from_obj = ModelIO::read_obj_model(std::format("{}/nanosuit.obj", MODEL_DIR));
+    auto mesh_from_obj = ModelIO().read_obj_model(std::format("{}/nanosuit/nanosuit.obj", MODEL_DIR));
 
     std::ranges::for_each(mesh_from_obj, [](auto &x){ x.bind_buffer(); });
     std::cout << mesh_from_obj.size()  << std::endl;
@@ -280,7 +280,8 @@ int main(int argc, char **argv) {
 
     shader.use();
     shader.set_int("shadowMap", 0);
-    shader.set_int("myTexture", 1);
+    shader.set_int("diffuseTexture", 1);
+    shader.set_int("specularTexture", 1);
 
     Shader envir_reflect_shader(std::format("{}/envir_reflect.vs", shader_root), std::format("{}/envir_reflect.fs", shader_root));
     envir_reflect_shader.use();
@@ -345,11 +346,10 @@ int main(int argc, char **argv) {
         glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.ID);
         cubic.process_environment_reflection_rendering(envir_reflect_shader, camera, skybox.ID);
 
+        std::ranges::for_each(mesh_from_obj, [&](auto &x){ x.process_rendering(shader, camera, depth_map, lightPos); });
         std::ranges::sort(mesh_models, [](auto &x, auto &y){ return x.get().get_distance(camera.position) < y.get().get_distance(camera.position); });
         std::ranges::for_each(mesh_models, [&](std::reference_wrapper<MeshModel> model){ model.get().process_rendering(shader, camera, depth_map, lightPos); });
-        std::ranges::for_each(mesh_from_obj, [&](auto &x){ x.process_rendering(shader, camera, depth_map, lightPos); });
         light_src.process_rendering(shader, camera, depth_map, lightPos, glm::vec3(10, 10, 10));
-
 
         if (enable_filter) {
             glBindFramebuffer(GL_FRAMEBUFFER, 0); // 返回默认

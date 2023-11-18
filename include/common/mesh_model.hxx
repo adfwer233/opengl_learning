@@ -13,7 +13,18 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+enum TextureType {
+    diffuse_texture,
+    specular_texture,
+    normal_texture,
+    height_texture
+};
 
+struct Texture {
+    unsigned int id;
+    TextureType type;
+    std::string path;
+};
 
 struct TriangleVerticeIndex {
 	unsigned int x, y, z;
@@ -35,29 +46,29 @@ public:
 
 	glm::mat4 transform;
 
-    unsigned int VBO, VAO, EBO;
+    bool blending{false};
 
-    unsigned int texture;
+    unsigned int VBO{}, VAO{}, EBO{};
 
-    bool use_texture;
+    std::vector<Texture> textures;
 
-	MeshModel() : transform(glm::mat4(1.0f)), box(AxisAlignedBoundingBox({ 0, 0, 0 }, { 0, 0, 0 })), use_texture(false) {}
+	MeshModel() : transform(glm::mat4(1.0f)), box(AxisAlignedBoundingBox({ 0, 0, 0 }, { 0, 0, 0 })) {}
 
 	AxisAlignedBoundingBox get_box() const;
 
     void bind_buffer();
 
-    void bind_texture(std::string texture_path);
+    void bind_texture(const std::string& texture_path , TextureType type);
 
     void process_shadow_rendering(Shader& shader);
 
-    void process_rendering(Shader& shader, Camera camera, unsigned int depth_map, glm::vec3 lightPos, glm::vec3 color = glm::vec3(1.0f, 0.0f, 0.0f));
+    void process_rendering(Shader& shader, Camera camera, unsigned int depth_map, glm::vec3 lightPos, glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f));
 
 	static bool collision_test(MeshModel &model1, MeshModel &model2);
 
 	friend class Constructor;
 
-    void bind_texture_with_alpha(std::string texture_path);
+    void bind_texture_with_alpha(const std::string& texture_path, TextureType type);
 
     float get_distance(glm::vec3 pos) const;
 

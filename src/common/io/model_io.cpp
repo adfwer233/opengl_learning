@@ -5,7 +5,21 @@
 #include "assimp/scene.h"
 #include "assimp/postprocess.h"
 
-MeshModel process_mesh(aiMesh *mesh, const aiScene *scene) {
+void ModelIO::load_material_texture(aiMaterial *material, aiTextureType type, MeshModel &model) {
+    for (auto i = 0; i < material->GetTextureCount(type); i++) {
+        aiString str;
+        material->GetTexture(type, i, &str);
+
+        std::string path = std::format("{}/{}", this->directory, std::string(str.C_Str()));
+        std::cout << path << std::endl;
+        if (type == aiTextureType::aiTextureType_DIFFUSE)
+            model.bind_texture(path, TextureType::diffuse_texture);
+        if (type == aiTextureType::aiTextureType_SPECULAR)
+            model.bind_texture(path, TextureType::specular_texture);
+    }
+}
+
+MeshModel ModelIO::process_mesh(aiMesh *mesh, const aiScene *scene) {
     MeshModel model;
 
     for (auto i = 0; i < mesh->mNumVertices; i++) {
@@ -23,12 +37,16 @@ MeshModel process_mesh(aiMesh *mesh, const aiScene *scene) {
         model.faces_indices.push_back({face.mIndices[0], face.mIndices[1], face.mIndices[2]});
     }
 
+    aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
+    load_material_texture(material, aiTextureType::aiTextureType_DIFFUSE, model);
+    load_material_texture(material, aiTextureType::aiTextureType_SPECULAR, model);
+
     model.transform = glm::identity<glm::mat4>();
     model.transform = glm::scale(model.transform, glm::vec3(0.1, 0.1, 0.1));
     return model;
 }
 
-void process_node(aiNode *node, const aiScene *scene, std::vector<MeshModel> &meshes) {
+void ModelIO::process_node(aiNode *node, const aiScene *scene, std::vector<MeshModel> &meshes) {
     for (auto i = 0; i < node->mNumMeshes; i++) {
         auto mesh = scene->mMeshes[node->mMeshes[i]];
         meshes.push_back(process_mesh(mesh, scene));
@@ -43,6 +61,8 @@ std::vector<MeshModel> ModelIO::read_obj_model(std::string model_path) {
     const aiScene *scene = importer.ReadFile(model_path, aiProcess_Triangulate | aiProcess_FlipUVs);
 
     std::vector<MeshModel> res;
+
+    this->directory = model_path.substr(0, model_path.find_last_of('/'));
 
     process_node(scene->mRootNode, scene, res);
 

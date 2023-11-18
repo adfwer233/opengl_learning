@@ -117,14 +117,15 @@ void MeshModel::process_rendering(Shader& shader, Camera camera, unsigned int de
     unsigned int projectionTransformLoc = glGetUniformLocation(shader.ID, "projection");
     glUniformMatrix4fv(projectionTransformLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
-    shader.set_int("use_texture", this->use_texture ? 1 : 0);
+    shader.set_int("use_texture", this->textures.empty() ? 0 : 1);
+    shader.set_int("use_blending_texture", this->blending ? 1 : 0);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, depth_map);
 
-    if (use_texture) {
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, this->texture);
+    for (auto i = 0; i < this->textures.size(); i++) {
+        glActiveTexture(GL_TEXTURE1 + this->textures[i].type);
+        glBindTexture(GL_TEXTURE_2D, this->textures[i].id);
     }
 
     glBindVertexArray(this->VAO);
@@ -148,8 +149,6 @@ void MeshModel::process_environment_reflection_rendering(Shader& shader, Camera 
     unsigned int projectionTransformLoc = glGetUniformLocation(shader.ID, "projection");
     glUniformMatrix4fv(projectionTransformLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
-    shader.set_int("use_texture", this->use_texture ? 1 : 0);
-
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, skybox_texture);
 
@@ -159,7 +158,7 @@ void MeshModel::process_environment_reflection_rendering(Shader& shader, Camera 
     glBindVertexArray(0);
 }
 
-void MeshModel::bind_texture(std::string texture_path) {
+void MeshModel::bind_texture(const std::string& texture_path, TextureType type) {
     // read the texture image
 
     int width, height, nrChannels;
@@ -170,22 +169,36 @@ void MeshModel::bind_texture(std::string texture_path) {
         return;
     }
 
-    this->use_texture = true;
+    Texture texture {0, type, texture_path};
 
-    glGenTextures(1, &this->texture);
-    glBindTexture(GL_TEXTURE_2D, this->texture);
+    glGenTextures(1, &texture.id);
+    glBindTexture(GL_TEXTURE_2D, texture.id);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+    GLenum format;
+    if (nrChannels == 1)
+        format = GL_RED;
+    else if (nrChannels == 3)
+        format = GL_RGB;
+    else if (nrChannels == 4)
+        format = GL_RGBA;
+
+    glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
     glGenerateMipmap(GL_TEXTURE_2D);
 
-    std::cout << "texture id " << this->texture << std::endl;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    std::cout << "texture id " << texture.id<< std::endl;
 
     glBindTexture(GL_TEXTURE_2D, 0);
+
+    this->textures.push_back(texture);
 
     stbi_image_free(data);
 }
 
-void MeshModel::bind_texture_with_alpha(std::string texture_path) {
+void MeshModel::bind_texture_with_alpha(const std::string& texture_path, TextureType type) {
     int width, height, nrChannels;
     unsigned char *data = stbi_load(texture_path.c_str(), &width, &height, &nrChannels, 0);
 
@@ -194,15 +207,19 @@ void MeshModel::bind_texture_with_alpha(std::string texture_path) {
         return;
     }
 
-    this->use_texture = true;
+    this->blending = true;
 
-    glGenTextures(1, &this->texture);
-    glBindTexture(GL_TEXTURE_2D, this->texture);
+    Texture texture {0, type, texture_path};
+
+    glGenTextures(1, &texture.id);
+    glBindTexture(GL_TEXTURE_2D, texture.id);
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
     glGenerateMipmap(GL_TEXTURE_2D);
 
     glBindTexture(GL_TEXTURE_2D, 0);
+
+    this->textures.push_back(texture);
 
     stbi_image_free(data);
 }

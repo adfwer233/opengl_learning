@@ -6,8 +6,9 @@ in vec3 FragPos;
 in vec4 FragPosLightSpace;
 in vec2 TextureCoord;
 
-uniform sampler2D myTexture;
 uniform sampler2D shadowMap;
+uniform sampler2D diffuseTexture;
+uniform sampler2D specularTexture;
 
 uniform vec3 lightPos;
 uniform vec3 viewPos;
@@ -15,6 +16,7 @@ uniform vec3 lightColor;
 uniform vec3 objectColor;
 
 uniform int use_texture;
+uniform int use_blending_texture;
 
 float ShadowCalculation(vec4 fragPosLightSpace) {
     vec3 proj = fragPosLightSpace.xyz / fragPosLightSpace.w;
@@ -39,7 +41,7 @@ void main()
     vec3 lightDirection = normalize(lightPos - FragPos);
     float diff = max(dot(norm, lightDirection), 0.0);
     vec3 diffuse = diff * lightColor;
-    
+
     // specular lighting
     float specularStrength = 0.5;
     vec3 viewDir = normalize(viewPos - FragPos);
@@ -49,13 +51,20 @@ void main()
     
     float shadow = ShadowCalculation(FragPosLightSpace);
 
-    vec4 texture_res = texture(myTexture, TextureCoord);
+    vec4 texture_res = texture(diffuseTexture, TextureCoord);
+    vec4 specular_texture_res = texture(specularTexture, TextureCoord);
+
+    if (use_texture != 0) {
+        diffuse = max(dot(norm, lightDirection), 0.0) * vec3(texture(diffuseTexture, TextureCoord));
+        ambient = ambientStrength * vec3(texture(diffuseTexture, TextureCoord));
+        specular = specularStrength * spec * vec3(texture(specularTexture, TextureCoord));
+    }
 
     vec3 result = (ambient + (1.0 - shadow) * (diffuse + specular)) * objectColor;
 
-    if (use_texture == 0) {
+    if (use_blending_texture == 0) {
         FragColor = vec4(result, 1.0);
     } else {
-        FragColor = texture_res * vec4(result, 1.0);
+        FragColor = vec4(result, 1.0) * texture_res;
     }
 }

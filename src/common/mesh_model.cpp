@@ -8,6 +8,10 @@
 #include "stb_image/stb_image.h"
 #include <format>
 
+void MeshModel::set_box(float min_x, float min_y, float min_z, float max_x, float max_y, float max_z) {
+    this->box = AxisAlignedBoundingBox({min_x, min_y, min_z}, {max_x, max_y, max_z});
+}
+
 AxisAlignedBoundingBox MeshModel::get_box() const {
 
     auto dx = box.x_range.end - box.x_range.start;
@@ -99,11 +103,11 @@ void MeshModel::process_shadow_rendering(Shader& shader) {
     glBindVertexArray(0);
 }
 
-void MeshModel::process_rendering(Shader& shader, Camera camera, unsigned int depth_map, glm::vec3 lightPos, glm::vec3 color) {
+void MeshModel::process_rendering(Shader& shader, Camera camera, unsigned int depth_map, glm::vec3 lightPos) {
     auto projection = glm::perspective(glm::radians(camera.zoom), 1.0f * 1024 / 1024, 0.1f, 100.0f);
 
     shader.use();
-    shader.set_vec3("objectColor", color);
+    shader.set_vec3("objectColor", this->object_color);
     shader.set_vec3("lightColor", glm::vec3(1.0f, 1.0f, 1.0f));
     shader.set_vec3("lightPos", lightPos);
     shader.set_vec3("viewPos", camera.position);

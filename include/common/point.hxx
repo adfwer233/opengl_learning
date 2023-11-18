@@ -34,6 +34,8 @@ struct Point3d {
     }
 
     glm::vec3 to_glm();
+
+    static float inner_product(Point3d &u, Point3d &v);
 };
 
 float inner_product(Point2d u, Point2d v);

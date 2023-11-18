@@ -15,17 +15,17 @@ MeshModel Constructor::Cubic(Point3d point1, Point3d point2) {
 
     constexpr int segment = 3;
 
-    auto mesh_rectangle = [&](Point3d base, Point3d vec_x, Point3d vec_y, Point3d norm) {
+    auto mesh_rectangle = [&](glm::vec3 base, glm::vec3 vec_x, glm::vec3 vec_y, glm::vec3 norm) {
         decltype(model.vertices) vertices;
         decltype(model.faces_indices) indices;
 
-        auto dx = vec_x / segment;
-        auto dy = vec_y / segment;
+        auto dx = vec_x / float(segment);
+        auto dy = vec_y / float(segment);
 
         for (int i: std::views::iota(0, segment + 1)) {
             for (int j: std::views::iota(0, segment + 1)) {
-                auto v = base + dx * i + dy * j;
-                Point2d texture{1.0f * i / segment, 1.0f * j / segment};
+                auto v = base + dx * float(i) + dy * float(j);
+                glm::vec2 texture{1.0f * i / segment, 1.0f * j / segment};
                 vertices.push_back({v, norm, texture});
             }
         }
@@ -115,16 +115,16 @@ MeshModel Constructor::Rectangle(glm::vec3 left_bot, glm::vec3 left_top, glm::ve
     auto vec1 = right_bot - left_bot;
     auto vec2 = left_top - left_bot;
 
-    auto normal = Point3d::outer_product({vec1.x, vec1.y, vec1.z}, {vec2.x, vec2.y, vec2.z});
+    auto normal = glm::cross(vec1, vec2);
 
     auto right_top = left_bot + vec1 + vec2;
 
     MeshModel model;
     model.vertices = {
-            {{left_bot.x, left_bot.y, left_bot.z}, normal, {0, 0}},
-            {{left_top.x, left_top.y, left_top.z}, normal, {1, 0}},
-            {{right_bot.x, right_bot.y, right_bot.z}, normal, {0, 1}},
-            {{right_top.x, right_top.y, right_top.z}, normal, {1, 1}},
+            {left_bot, normal, {0, 0}},
+            {left_top, normal, {1, 0}},
+            {right_bot, normal, {0, 1}},
+            {right_top, normal, {1, 1}},
     };
 
     model.faces_indices = {

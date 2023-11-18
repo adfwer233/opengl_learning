@@ -21,6 +21,8 @@
 #include "common/io/model_io.h"
 #include "common/io/render_output.h"
 
+#include "common/ray_tracing/ray_tracing.h"
+
 #ifndef SHADER_DIR
 #define SHADER_DIR "./shader"
 #endif
@@ -53,9 +55,21 @@ float lastFrame = 0.0f;
 
 Camera camera(glm::vec3(0.5, 0.5, 5.0f), glm::vec3(0, 1.0f, 0));
 
-constexpr const int n = 480;
-constexpr const int m = 600;
-std::array<std::array<glm::vec3, m>, n> image;
+// set light position
+glm::vec3 lightPos(-7, 7, 10);
+
+MeshModel sphere = Constructor::Sphere(Point3d(1.5, 0, 0), 0.2);
+MeshModel sphere2 = Constructor::Sphere(Point3d(-0.5, -0.5, 1), 0.2);
+MeshModel light_src = Constructor::Sphere(Point3d(lightPos.x, lightPos.y, lightPos.z), 0.1);
+MeshModel cubic = Constructor::Cubic({ -0.3, -0.3, -0.3 }, { 0.3, 0.3, 0.3 });
+MeshModel cubic2 = Constructor::Cubic({ -1.6, -0.3, -1.6 }, { -1.3, 0.3, -1.3 });
+
+MeshModel mirror = Constructor::Rectangle({-1, -1, 1}, {-1, 1, 1}, {1, -1, 1});
+MeshModel mirror2 = Constructor::Rectangle({-0.5, -0.5, 1.5}, {-0.5, 0.5, 1.5}, {0.5, -0.5, 1.5});
+
+std::vector<std::reference_wrapper<MeshModel>> mesh_models{ sphere, sphere2, cubic2};
+
+bool render = false;
 
 void processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -77,16 +91,12 @@ void processInput(GLFWwindow* window) {
         enable_filter = false;
     if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
         enable_filter = true;
-    if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) {
-
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < m; j++) {
-                image[i][j] = {float(i) / n, float(j) / m, 0.2};
-            }
+    if (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS) {
+        if (not render) {
+            ray_tracing(camera, mesh_models);
+            render = true;
+            std::cout << "output finish" << std::endl;
         }
-
-        output_ppm_image(image);
-        std::cout << "output finish" << std::endl;
     }
 
 }
@@ -235,26 +245,10 @@ int main(int argc, char **argv) {
         std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+    auto mesh_from_obj = ModelIO().read_obj_model(std::format("{}/nanosuit/nanosuit.obj", MODEL_DIR));
 
-    // frame buffer for mirror
-
-
-    // set light position
-    glm::vec3 lightPos(-7, 7, 10);
-
-    MeshModel sphere = Constructor::Sphere(Point3d(1.5, 0, 0), 0.2);
-    MeshModel sphere2 = Constructor::Sphere(Point3d(-0.5, -0.5, 1), 0.2);
-    MeshModel light_src = Constructor::Sphere(Point3d(lightPos.x, lightPos.y, lightPos.z), 0.1);
-    MeshModel cubic = Constructor::Cubic({ -0.3, -0.3, -0.3 }, { 0.3, 0.3, 0.3 });
-    MeshModel cubic2 = Constructor::Cubic({ -1.6, -0.3, -1.6 }, { -1.3, 0.3, -1.3 });
-
-    MeshModel mirror = Constructor::Rectangle({-1, -1, 1}, {-1, 1, 1}, {1, -1, 1});
-    MeshModel mirror2 = Constructor::Rectangle({-0.5, -0.5, 1.5}, {-0.5, 0.5, 1.5}, {0.5, -0.5, 1.5});
-
-    int entity_count = 0;
-
-    std::vector<std::reference_wrapper<MeshModel>> mesh_models{ sphere, sphere2, cubic2, mirror, mirror2 };
-    std::ranges::for_each(mesh_models, [](std::reference_wrapper<MeshModel> &x){x.get().bind_buffer();});
+    std::ranges::for_each(mesh_from_obj, [&](auto &x){ mesh_models.push_back(x); });
+    std::ranges::for_each(mesh_models, [](auto &x){x.get().bind_buffer();});
 
     cubic.bind_buffer();
 
@@ -262,10 +256,10 @@ int main(int argc, char **argv) {
     mirror.bind_texture_with_alpha(std::format("{}/mirror.png", TEXTURE_DIR), diffuse_texture);
     mirror2.bind_texture_with_alpha(std::format("{}/mirror.png", TEXTURE_DIR), diffuse_texture);
 
-    auto mesh_from_obj = ModelIO().read_obj_model(std::format("{}/nanosuit/nanosuit.obj", MODEL_DIR));
+    light_src.object_color = {10, 10, 10};
 
-    std::ranges::for_each(mesh_from_obj, [](auto &x){ x.bind_buffer(); });
-    std::cout << mesh_from_obj.size()  << std::endl;
+    sphere.object_color = {1, 0, 0};
+    sphere2.object_color = {1, 0, 0};
 
 //    sphere.bind_texture(std::format("{}/container.jpg", TEXTURE_DIR));
 
@@ -366,7 +360,7 @@ int main(int argc, char **argv) {
         std::ranges::for_each(mesh_from_obj, [&](auto &x){ x.process_rendering(shader, camera, depth_map, lightPos); });
         std::ranges::sort(mesh_models, [](auto &x, auto &y){ return x.get().get_distance(camera.position) < y.get().get_distance(camera.position); });
         std::ranges::for_each(mesh_models, [&](std::reference_wrapper<MeshModel> model){ model.get().process_rendering(shader, camera, depth_map, lightPos); });
-        light_src.process_rendering(shader, camera, depth_map, lightPos, glm::vec3(10, 10, 10));
+        light_src.process_rendering(shader, camera, depth_map, lightPos);
 
         if (enable_filter) {
             glBindFramebuffer(GL_FRAMEBUFFER, 0); // 返回默认

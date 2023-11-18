@@ -31,8 +31,8 @@ struct TriangleVerticeIndex {
 };
 
 struct TriangleWithNormal {
-	Point3d point, normal;
-    Point2d texture_coord;
+	glm::vec3 point, normal;
+    glm::vec2 texture_coord;
 };
 
 struct MeshModel {
@@ -48,6 +48,8 @@ public:
 
     bool blending{false};
 
+    glm::vec3 object_color{1, 1, 1};
+
     unsigned int VBO{}, VAO{}, EBO{};
 
     std::vector<Texture> textures;
@@ -62,7 +64,7 @@ public:
 
     void process_shadow_rendering(Shader& shader);
 
-    void process_rendering(Shader& shader, Camera camera, unsigned int depth_map, glm::vec3 lightPos, glm::vec3 color = glm::vec3(1.0f, 1.0f, 1.0f));
+    void process_rendering(Shader& shader, Camera camera, unsigned int depth_map, glm::vec3 lightPos);
 
 	static bool collision_test(MeshModel &model1, MeshModel &model2);
 
@@ -73,4 +75,6 @@ public:
     float get_distance(glm::vec3 pos) const;
 
     void process_environment_reflection_rendering(Shader &shader, Camera camera, unsigned int skybox_texture);
+
+    void set_box(float min_x, float min_y, float min_z, float max_x, float max_y, float max_z);
 };

@@ -14,6 +14,38 @@ constexpr const int m = 720;
 
 std::array<std::array<glm::vec3, m>, n> image;
 
+struct RGB {
+    unsigned char r, g, b;
+};
+
+struct RGBA {
+    unsigned char r, g, b, a;
+};
+
+glm::vec3 get_texture_rgb(Texture texture, float u, float v) {
+    int sample_i = int(u * texture.width);
+    int sample_j = int(v * texture.height);
+    RGB *data = reinterpret_cast<RGB*>(texture.data);
+    RGB item = data[sample_j * texture.width + sample_i];
+    return { float(item.r) / 255, float(item.g) / 255, float(item.b) / 255 };
+}
+
+glm::vec4 get_texture_rgba(Texture texture, float u, float v) {
+    int sample_i = int(u * texture.width);
+    int sample_j = int(v * texture.height);
+    auto *data = reinterpret_cast<RGBA*>(texture.data);
+    auto item = data[sample_j * texture.width + sample_i];
+    return { float(item.r) / 255, float(item.g) / 255, float(item.b) / 255, float(item.a) / 255 };
+}
+
+glm::vec3 get_texture(Texture texture, float u, float v) {
+    if (texture.num_channels == 3) {
+        return get_texture_rgb(texture, u, v);
+    } else {
+        return glm::vec3(get_texture_rgba(texture, u, v));
+    }
+}
+
 bool ray_tracing_box_test (Ray ray, AxisAlignedBoundingBox box) {
     float minx, miny, minz, maxx, maxy, maxz;
     minx = box.x_range.start;
@@ -93,7 +125,7 @@ void ray_tracing(const Camera &camera, std::vector<std::reference_wrapper<MeshMo
             auto view_point = base - (up * float(i)) + (right * (float(j)));
             Ray ray(camera.position, view_point - camera.position);
 
-            std::map<float, size_t> param_index_map;
+            std::map<float, std::tuple<size_t, float, float, float, decltype(MeshModel::faces_indices)::value_type>> param_index_map;
 
             for (auto k = 0; k < mesh_models.size(); k++) {
                 auto &model = mesh_models[k].get();
@@ -109,7 +141,7 @@ void ray_tracing(const Camera &camera, std::vector<std::reference_wrapper<MeshMo
                             model.vertices[tri.z].point
                             );
                     if (flag) {
-                        param_index_map[t] = k;
+                        param_index_map[t] = {k, u, v, w, tri};
                     }
                 }
             }
@@ -118,8 +150,28 @@ void ray_tracing(const Camera &camera, std::vector<std::reference_wrapper<MeshMo
                 // std::cout << "no hit" << std::endl;
                 image[i][j] = {0, 0, 0};
             } else {
-                auto [t, idx] = *param_index_map.begin();
-                image[i][j] = mesh_models[idx].get().object_color;
+                auto [t, res_tuple] = *param_index_map.begin();
+                auto [idx, u, v, w, tri] = res_tuple;
+                if (mesh_models[idx].get().textures.empty()) {
+                    image[i][j] = mesh_models[idx].get().object_color;
+                } else {
+                    MeshModel &model = mesh_models[idx].get();
+                    auto v0 = model.vertices[tri.x];
+                    auto v1 = model.vertices[tri.y];
+                    auto v2 = model.vertices[tri.z];
+
+                    auto uv = v0.texture_coord * u + v1.texture_coord * v + v2.texture_coord * w;
+
+                    glm::vec3 diffuse_texture {0, 0, 0};
+                    for (auto texture: mesh_models[idx].get().textures) {
+                        if (texture.type == TextureType::diffuse_texture) {
+                            diffuse_texture = get_texture(texture, uv.x, uv.y);
+                        }
+                        break;
+                    }
+
+                    image[i][j] = diffuse_texture;
+                }
             }
         }
     }

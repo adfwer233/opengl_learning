@@ -71,6 +71,8 @@ std::vector<std::reference_wrapper<MeshModel>> mesh_models{ sphere, sphere2, cub
 
 bool render = false;
 
+std::array<std::array<glm::vec3, 256>, 256> tmp_image;
+
 void processInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
@@ -98,7 +100,22 @@ void processInput(GLFWwindow* window) {
             std::cout << "output finish" << std::endl;
         }
     }
+    if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) {
+        if (not render) {
+            auto texture = mirror.textures[0];
+            std::cout << texture.num_channels << ' ' << texture.height << ' ' << texture.width << std::endl;
 
+            RGBA* data = (RGBA*)texture.data;
+            for (int i = 0; i < texture.height; i++) {
+                for (int j = 0; j < texture.width; j++) {
+                    auto item = data[i * texture.width + j];
+                    tmp_image[i][j] = {float(item.r) / 255 , float(item.g) / 255 , float(item.b) / 255};
+                }
+            }
+
+            output_ppm_image(tmp_image);
+        }
+    }
 }
 
 void scroll_callback(GLFWwindow* window, double x_offset, double y_offset) {

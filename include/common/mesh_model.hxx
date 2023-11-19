@@ -24,6 +24,9 @@ struct Texture {
     unsigned int id;
     TextureType type;
     std::string path;
+    unsigned char* data;
+    int num_channels;
+    int width, height;
 };
 
 struct TriangleVerticeIndex {

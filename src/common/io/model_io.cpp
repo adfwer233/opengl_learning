@@ -35,6 +35,7 @@ MeshModel ModelIO::process_mesh(aiMesh *mesh, const aiScene *scene) {
     for (auto i = 0; i < mesh->mNumFaces; i++) {
         aiFace face = mesh->mFaces[i];
         model.faces_indices.push_back({face.mIndices[0], face.mIndices[1], face.mIndices[2]});
+//        std::cout << std::format("indices {} {} {}\n", face.mIndices[0], face.mIndices[1], face.mIndices[2]);
     }
 
     aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];

@@ -41,9 +41,9 @@ std::tuple<bool, float, float, float, float> Ray::ray_triangle_intersection(cons
         return area / area2;
     };
 
-    u = get_param(v1, v0);
-    v = get_param(v2, v1);
-    w = get_param(v0, v2);
+    w = get_param(v1, v0);
+    u = get_param(v2, v1);
+    v = get_param(v0, v2);
 
     if (u < 0 or v < 0 or w < 0) return std::make_tuple(false, 0, 0, 0, 0);
 

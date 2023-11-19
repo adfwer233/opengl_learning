@@ -173,7 +173,7 @@ void MeshModel::bind_texture(const std::string& texture_path, TextureType type) 
         return;
     }
 
-    Texture texture {0, type, texture_path};
+    Texture texture {0, type, texture_path, data, nrChannels, width, height};
 
     glGenTextures(1, &texture.id);
     glBindTexture(GL_TEXTURE_2D, texture.id);
@@ -199,7 +199,7 @@ void MeshModel::bind_texture(const std::string& texture_path, TextureType type) 
 
     this->textures.push_back(texture);
 
-    stbi_image_free(data);
+//    stbi_image_free(data);
 }
 
 void MeshModel::bind_texture_with_alpha(const std::string& texture_path, TextureType type) {
@@ -213,7 +213,7 @@ void MeshModel::bind_texture_with_alpha(const std::string& texture_path, Texture
 
     this->blending = true;
 
-    Texture texture {0, type, texture_path};
+    Texture texture {0, type, texture_path, data, nrChannels, width, height};
 
     glGenTextures(1, &texture.id);
     glBindTexture(GL_TEXTURE_2D, texture.id);
@@ -225,7 +225,7 @@ void MeshModel::bind_texture_with_alpha(const std::string& texture_path, Texture
 
     this->textures.push_back(texture);
 
-    stbi_image_free(data);
+//    stbi_image_free(data);
 }
 
 float MeshModel::get_distance(glm::vec3 pos) const {

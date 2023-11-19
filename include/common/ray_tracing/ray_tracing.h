@@ -84,8 +84,35 @@ bool ray_tracing_box_test (Ray ray, AxisAlignedBoundingBox box) {
     return false;
 }
 
-void ray_tracing(const Camera &camera, std::vector<std::reference_wrapper<MeshModel>> mesh_models) {
+bool shadow_test(glm::vec3 pos, glm::vec3 light_src, std::vector<std::reference_wrapper<MeshModel>> mesh_models) {
+    constexpr float eps = 1e-6;
 
+    Ray ray(pos, light_src - pos);
+    for (auto k = 0; k < mesh_models.size(); k++) {
+        MeshModel &model = mesh_models[k].get();
+
+        if (not ray_tracing_box_test(ray, model.get_box())) {
+            continue;
+        }
+
+        for (auto &tri: model.faces_indices) {
+            auto [flag, t, u, v, w] = ray.ray_triangle_intersection(
+                    model.vertices[tri.x].point,
+                    model.vertices[tri.y].point,
+                    model.vertices[tri.z].point
+            );
+            if (flag) {
+                if (t > eps) return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+void ray_tracing(const Camera &camera, std::vector<std::reference_wrapper<MeshModel>> mesh_models) {
+    glm::vec3 light_color {1, 1, 1};
+    glm::vec3 light_src {-7, 7, 10};
 
     auto up = camera.camera_up_axis;
     auto right = camera.camera_right_axis;
@@ -134,7 +161,7 @@ void ray_tracing(const Camera &camera, std::vector<std::reference_wrapper<MeshMo
                     continue;
                 }
 
-                for (auto tri: model.faces_indices) {
+                for (auto &tri: model.faces_indices) {
                     auto [flag, t, u, v, w] = ray.ray_triangle_intersection(
                             model.vertices[tri.x].point,
                             model.vertices[tri.y].point,
@@ -152,16 +179,17 @@ void ray_tracing(const Camera &camera, std::vector<std::reference_wrapper<MeshMo
             } else {
                 auto [t, res_tuple] = *param_index_map.begin();
                 auto [idx, u, v, w, tri] = res_tuple;
+
+                MeshModel &model = mesh_models[idx].get();
+                auto v0 = model.vertices[tri.x];
+                auto v1 = model.vertices[tri.y];
+                auto v2 = model.vertices[tri.z];
+
+                auto uv = v0.texture_coord * u + v1.texture_coord * v + v2.texture_coord * w;
+
                 if (mesh_models[idx].get().textures.empty()) {
                     image[i][j] = mesh_models[idx].get().object_color;
                 } else {
-                    MeshModel &model = mesh_models[idx].get();
-                    auto v0 = model.vertices[tri.x];
-                    auto v1 = model.vertices[tri.y];
-                    auto v2 = model.vertices[tri.z];
-
-                    auto uv = v0.texture_coord * u + v1.texture_coord * v + v2.texture_coord * w;
-
                     glm::vec3 diffuse_texture {0, 0, 0};
                     for (auto texture: mesh_models[idx].get().textures) {
                         if (texture.type == TextureType::diffuse_texture) {
@@ -172,6 +200,36 @@ void ray_tracing(const Camera &camera, std::vector<std::reference_wrapper<MeshMo
 
                     image[i][j] = diffuse_texture;
                 }
+
+                constexpr float ambient_strength = 0.2;
+                float shadow = 0;
+
+                // compute local ambient
+                auto ambient = ambient_strength * light_color;
+
+                // compute local diffuse
+                auto normal = v0.normal * u + v1.normal * v + v0.normal * w;
+                auto frag_position = ray.at(t);
+                auto light_direction = glm::normalize(light_src - frag_position);
+                float diffuse_strength = std::max(0.0f, glm::dot(normal, light_direction));
+                auto diffuse = diffuse_strength * light_color;
+
+                // compute local specular
+                constexpr const float specular_strength = 0.5;
+                constexpr const int specular_pow = 32;
+                auto view_direction = glm::normalize(camera.position - frag_position);
+                auto reflect_direction = glm::reflect(-light_direction, normal);
+                float specular_coefficient = std::pow(std::max(0.0f, glm::dot(view_direction, reflect_direction)), specular_pow);
+                auto specular = specular_strength * specular_coefficient * light_color;
+
+                if (shadow_test(frag_position, light_src, mesh_models)) {
+                    shadow = 1;
+                }
+
+                auto local = (ambient + (1.0f - shadow) * (diffuse + specular)) * image[i][j];
+
+                // only local light strength now;
+                image[i][j] = local;
             }
         }
     }

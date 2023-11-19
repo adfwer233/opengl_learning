@@ -84,10 +84,13 @@ bool ray_tracing_box_test (Ray ray, AxisAlignedBoundingBox box) {
     return false;
 }
 
-bool shadow_test(glm::vec3 pos, glm::vec3 light_src, std::vector<std::reference_wrapper<MeshModel>> mesh_models) {
-    constexpr float eps = 1e-6;
+float shadow_test(glm::vec3 pos, glm::vec3 light_src, std::vector<std::reference_wrapper<MeshModel>> mesh_models) {
+    constexpr float eps = 1e-4;
 
-    Ray ray(pos, light_src - pos);
+    Ray ray(pos, glm::normalize(light_src - pos));
+
+    float res = 0;
+
     for (auto k = 0; k < mesh_models.size(); k++) {
         MeshModel &model = mesh_models[k].get();
 
@@ -101,18 +104,156 @@ bool shadow_test(glm::vec3 pos, glm::vec3 light_src, std::vector<std::reference_
                     model.vertices[tri.y].point,
                     model.vertices[tri.z].point
             );
-            if (flag) {
-                if (t > eps) return true;
+
+            if (flag and t > eps) {
+                if (model.blending) {
+                    auto v0 = model.vertices[tri.x];
+                    auto v1 = model.vertices[tri.y];
+                    auto v2 = model.vertices[tri.z];
+
+                    auto uv = v0.texture_coord * u + v1.texture_coord * v + v2.texture_coord * w;
+
+                    auto texture_result = get_texture_rgba(model.textures[0], uv.x, uv.y);
+
+                    res = std::max(res, texture_result.w);
+                } else {
+                    return 1;
+                }
             }
         }
     }
 
-    return false;
+    return res;
 }
 
-void ray_tracing(const Camera &camera, std::vector<std::reference_wrapper<MeshModel>> mesh_models) {
-    glm::vec3 light_color {1, 1, 1};
-    glm::vec3 light_src {-7, 7, 10};
+constexpr const int MAX_RAY_TRACING_DEPTH = 3;
+
+glm::vec3 ray_tracing_light(glm::vec3 origin, glm::vec3 direction, int depth, glm::vec3 light_color, std::vector<std::reference_wrapper<MeshModel>> &mesh_models) {
+    static glm::vec3 light_src {-7, 7, 10};
+
+    if (depth > MAX_RAY_TRACING_DEPTH) {
+        return {0, 0, 0};
+    }
+
+    Ray ray(origin, direction);
+
+    std::map<float, std::tuple<size_t, float, float, float, decltype(MeshModel::faces_indices)::value_type>> param_index_map;
+
+    for (auto k = 0; k < mesh_models.size(); k++) {
+        auto &model = mesh_models[k].get();
+
+        if (not ray_tracing_box_test(ray, model.get_box())) {
+            continue;
+        }
+
+        for (auto &tri: model.faces_indices) {
+            auto [flag, t, u, v, w] = ray.ray_triangle_intersection(
+                    model.vertices[tri.x].point,
+                    model.vertices[tri.y].point,
+                    model.vertices[tri.z].point
+            );
+            if (flag) {
+                param_index_map[t] = {k, u, v, w, tri};
+            }
+        }
+    }
+
+    glm::vec3 object_color {0, 0, 0};
+
+    if (param_index_map.empty()) {
+        // std::cout << "no hit" << std::endl;
+        return {0, 0, 0};
+    } else {
+        auto [t, res_tuple] = *param_index_map.begin();
+        auto [idx, u, v, w, tri] = res_tuple;
+
+        MeshModel &model = mesh_models[idx].get();
+        auto v0 = model.vertices[tri.x];
+        auto v1 = model.vertices[tri.y];
+        auto v2 = model.vertices[tri.z];
+
+        auto uv = v0.texture_coord * u + v1.texture_coord * v + v2.texture_coord * w;
+
+        bool has_specular_texture = false;
+        glm::vec3 specular_texture;
+
+        bool has_blending = false;
+        float alpha = 1;
+
+        if (mesh_models[idx].get().textures.empty()) {
+            object_color = mesh_models[idx].get().object_color;
+        } else {
+            glm::vec3 diffuse_texture {0, 0, 0};
+            for (auto texture: mesh_models[idx].get().textures) {
+                if (texture.type == TextureType::diffuse_texture) {
+                    diffuse_texture = get_texture(texture, uv.x, uv.y);
+                }
+                if (texture.type == TextureType::specular_texture) {
+                    specular_texture = get_texture(texture, uv.x, uv.y);
+                    has_specular_texture = true;
+                }
+            }
+            object_color = diffuse_texture;
+
+            if (model.blending) {
+                auto blending_texture = get_texture_rgba(model.textures[0], uv.x, uv.y);
+                alpha = blending_texture.w;
+
+                if (alpha < 0.9) {
+                    has_blending = true ;
+                }
+            }
+        }
+
+        constexpr float ambient_strength = 0.2;
+        float shadow = 0;
+
+        // compute local ambient
+        auto ambient = ambient_strength * light_color;
+
+        // compute local diffuse
+        auto normal = v0.normal * u + v1.normal * v + v0.normal * w;
+        auto frag_position = ray.at(t);
+        auto light_direction = glm::normalize(light_src - frag_position);
+        float diffuse_strength = std::max(0.0f, glm::dot(normal, light_direction));
+        auto diffuse = diffuse_strength * light_color;
+
+        // compute local specular
+        constexpr const float specular_strength = 0.5;
+        constexpr const int specular_pow = 32;
+        auto view_direction = glm::normalize(origin - frag_position);
+        auto reflect_direction = glm::reflect(-light_direction, normal);
+        float specular_coefficient = std::pow(std::max(0.0f, glm::dot(view_direction, reflect_direction)), specular_pow);
+        auto specular = specular_strength * specular_coefficient * light_color;
+
+        if (has_specular_texture) {
+            specular = specular * specular_texture;
+        }
+
+        shadow = shadow_test(frag_position, light_src, mesh_models);
+
+
+        auto local = (ambient + (1.0f - shadow) * (diffuse + specular)) * object_color;
+
+        // compute refraction lighting strength
+        if (has_blending) {
+            auto refraction = ray_tracing_light(frag_position, direction, depth + 1, light_color, mesh_models);
+            local = (1 - shadow) *  object_color;
+            return local * alpha + (1 - alpha) * refraction;
+        }
+
+        // compute the mirror reflection
+
+//        if (has_reflection) {
+//
+//        }
+
+        // only local light strength now;
+        return local;
+    }
+}
+
+void ray_tracing(const Camera &camera, std::vector<std::reference_wrapper<MeshModel>> &mesh_models) {
 
     auto up = camera.camera_up_axis;
     auto right = camera.camera_right_axis;
@@ -151,86 +292,7 @@ void ray_tracing(const Camera &camera, std::vector<std::reference_wrapper<MeshMo
         for (int j = 0; j < m; j++) {
             auto view_point = base - (up * float(i)) + (right * (float(j)));
             Ray ray(camera.position, view_point - camera.position);
-
-            std::map<float, std::tuple<size_t, float, float, float, decltype(MeshModel::faces_indices)::value_type>> param_index_map;
-
-            for (auto k = 0; k < mesh_models.size(); k++) {
-                auto &model = mesh_models[k].get();
-
-                if (not ray_tracing_box_test(ray, model.get_box())) {
-                    continue;
-                }
-
-                for (auto &tri: model.faces_indices) {
-                    auto [flag, t, u, v, w] = ray.ray_triangle_intersection(
-                            model.vertices[tri.x].point,
-                            model.vertices[tri.y].point,
-                            model.vertices[tri.z].point
-                            );
-                    if (flag) {
-                        param_index_map[t] = {k, u, v, w, tri};
-                    }
-                }
-            }
-
-            if (param_index_map.empty()) {
-                // std::cout << "no hit" << std::endl;
-                image[i][j] = {0, 0, 0};
-            } else {
-                auto [t, res_tuple] = *param_index_map.begin();
-                auto [idx, u, v, w, tri] = res_tuple;
-
-                MeshModel &model = mesh_models[idx].get();
-                auto v0 = model.vertices[tri.x];
-                auto v1 = model.vertices[tri.y];
-                auto v2 = model.vertices[tri.z];
-
-                auto uv = v0.texture_coord * u + v1.texture_coord * v + v2.texture_coord * w;
-
-                if (mesh_models[idx].get().textures.empty()) {
-                    image[i][j] = mesh_models[idx].get().object_color;
-                } else {
-                    glm::vec3 diffuse_texture {0, 0, 0};
-                    for (auto texture: mesh_models[idx].get().textures) {
-                        if (texture.type == TextureType::diffuse_texture) {
-                            diffuse_texture = get_texture(texture, uv.x, uv.y);
-                        }
-                        break;
-                    }
-
-                    image[i][j] = diffuse_texture;
-                }
-
-                constexpr float ambient_strength = 0.2;
-                float shadow = 0;
-
-                // compute local ambient
-                auto ambient = ambient_strength * light_color;
-
-                // compute local diffuse
-                auto normal = v0.normal * u + v1.normal * v + v0.normal * w;
-                auto frag_position = ray.at(t);
-                auto light_direction = glm::normalize(light_src - frag_position);
-                float diffuse_strength = std::max(0.0f, glm::dot(normal, light_direction));
-                auto diffuse = diffuse_strength * light_color;
-
-                // compute local specular
-                constexpr const float specular_strength = 0.5;
-                constexpr const int specular_pow = 32;
-                auto view_direction = glm::normalize(camera.position - frag_position);
-                auto reflect_direction = glm::reflect(-light_direction, normal);
-                float specular_coefficient = std::pow(std::max(0.0f, glm::dot(view_direction, reflect_direction)), specular_pow);
-                auto specular = specular_strength * specular_coefficient * light_color;
-
-                if (shadow_test(frag_position, light_src, mesh_models)) {
-                    shadow = 1;
-                }
-
-                auto local = (ambient + (1.0f - shadow) * (diffuse + specular)) * image[i][j];
-
-                // only local light strength now;
-                image[i][j] = local;
-            }
+            image[i][j] = ray_tracing_light(camera.position, view_point - camera.position, 1, {1, 1, 1}, mesh_models);
         }
     }
 

@@ -25,7 +25,7 @@ std::tuple<bool, float, float, float, float> Ray::ray_triangle_intersection(cons
 
     float t = -1.0f * (glm::dot(normal, this->base) + d) / n_dot_dir;
 
-    if (t < 0) return std::make_tuple(false, 0, 0, 0, 0);
+    if (t < eps) return std::make_tuple(false, 0, 0, 0, 0);
 
     auto p = this->at(t);
 

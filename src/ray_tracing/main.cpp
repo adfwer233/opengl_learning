@@ -58,16 +58,16 @@ Camera camera(glm::vec3(0.5, 0.5, 5.0f), glm::vec3(0, 1.0f, 0));
 // set light position
 glm::vec3 lightPos(-7, 7, 10);
 
-MeshModel sphere = Constructor::Sphere(Point3d(1.5, 0, 0), 0.2);
+MeshModel sphere = Constructor::Sphere(Point3d(1.5, 0.5, 0), 0.2);
 MeshModel sphere2 = Constructor::Sphere(Point3d(-0.5, -0.5, 1), 0.2);
 MeshModel light_src = Constructor::Sphere(Point3d(lightPos.x, lightPos.y, lightPos.z), 0.1);
-MeshModel cubic = Constructor::Cubic({ -0.3, -0.3, -0.3 }, { 0.3, 0.3, 0.3 });
-MeshModel cubic2 = Constructor::Cubic({ -1.6, -0.3, -1.6 }, { -1.3, 0.3, -1.3 });
+MeshModel cubic = Constructor::Cubic({ 1.0, -0.3, -0.5 }, { 2, 0.3, 0.5 });
+MeshModel cubic2 = Constructor::Cubic({ 0, -0.3, -1.6 }, { 1, 0.3, -1.3 });
 
-MeshModel mirror = Constructor::Rectangle({-1, -1, 1}, {-1, 1, 1}, {1, -1, 1});
+MeshModel mirror = Constructor::Rectangle({-0.5, 0, 0.5}, {-0.5, 1, 0.5}, {0.5, 0, 0.5});
 MeshModel mirror2 = Constructor::Rectangle({-0.5, -0.5, 1.5}, {-0.5, 0.5, 1.5}, {0.5, -0.5, 1.5});
 
-std::vector<std::reference_wrapper<MeshModel>> mesh_models{ sphere, sphere2, cubic2, mirror };
+std::vector<std::reference_wrapper<MeshModel>> mesh_models{ sphere, sphere2, cubic2, mirror, mirror2, cubic};
 
 bool render = false;
 
@@ -95,7 +95,8 @@ void processInput(GLFWwindow* window) {
         enable_filter = true;
     if (glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS) {
         if (not render) {
-            ray_tracing(camera, mesh_models);
+            auto target_models = mesh_models;
+            ray_tracing(camera, target_models);
             render = true;
             std::cout << "output finish" << std::endl;
         }
@@ -274,8 +275,9 @@ int main(int argc, char **argv) {
     mirror.bind_texture_with_alpha(std::format("{}/mirror.png", TEXTURE_DIR), diffuse_texture);
     mirror2.bind_texture_with_alpha(std::format("{}/mirror.png", TEXTURE_DIR), diffuse_texture);
 
-    light_src.object_color = {10, 10, 10};
+    cubic.reflection = true;
 
+    light_src.object_color = {10, 10, 10};
     sphere.object_color = {1, 0, 0};
     sphere2.object_color = {1, 0, 0};
 
@@ -357,19 +359,19 @@ int main(int argc, char **argv) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
-//        glDepthMask(GL_LEQUAL);
-//        skybox_shader.use();
-//        unsigned int transformLoc = glGetUniformLocation(skybox_shader.ID, "model");
-//        auto scale = glm::mat4(1.0f);
-//        scale = glm::scale(scale, glm::vec3(10.0f));
-//        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(scale));
-//        unsigned int viewTransformLoc = glGetUniformLocation(skybox_shader.ID, "view");
-//        glUniformMatrix4fv(viewTransformLoc, 1, GL_FALSE, glm::value_ptr(camera.get_view_transformation()));
-//        unsigned int projectionTransformLoc = glGetUniformLocation(skybox_shader.ID, "projection");
-//        projection = glm::perspective(glm::radians(camera.zoom), 1.0f * 1024 / 1024, 0.1f, 100.0f);
-//        glUniformMatrix4fv(projectionTransformLoc, 1, GL_FALSE, glm::value_ptr(projection));
-//        skybox.rendering();
-//        glDepthMask(GL_LESS);
+        glDepthMask(GL_LEQUAL);
+        skybox_shader.use();
+        unsigned int transformLoc = glGetUniformLocation(skybox_shader.ID, "model");
+        auto scale = glm::mat4(1.0f);
+        scale = glm::scale(scale, glm::vec3(10.0f));
+        glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(scale));
+        unsigned int viewTransformLoc = glGetUniformLocation(skybox_shader.ID, "view");
+        glUniformMatrix4fv(viewTransformLoc, 1, GL_FALSE, glm::value_ptr(camera.get_view_transformation()));
+        unsigned int projectionTransformLoc = glGetUniformLocation(skybox_shader.ID, "projection");
+        projection = glm::perspective(glm::radians(camera.zoom), 1.0f * 1024 / 1024, 0.1f, 100.0f);
+        glUniformMatrix4fv(projectionTransformLoc, 1, GL_FALSE, glm::value_ptr(projection));
+        skybox.rendering();
+        glDepthMask(GL_LESS);
 
         envir_reflect_shader.use();
         glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.ID);

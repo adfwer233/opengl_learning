@@ -44,6 +44,8 @@ MeshModel ModelIO::process_mesh(aiMesh *mesh, const aiScene *scene) {
 
     model.transform = glm::identity<glm::mat4>();
     model.transform = glm::scale(model.transform, glm::vec3(0.1, 0.1, 0.1));
+    model.transform = glm::translate(model.transform, {0, 3, 0});
+
     return model;
 }
 

@@ -152,7 +152,7 @@ glm::vec3 ray_tracing_light(glm::vec3 origin, glm::vec3 direction, int depth, gl
                     model.vertices[tri.y].point,
                     model.vertices[tri.z].point
             );
-            if (flag) {
+            if (flag and t > 1e-5) {
                 param_index_map[t] = {k, u, v, w, tri};
             }
         }
@@ -244,11 +244,11 @@ glm::vec3 ray_tracing_light(glm::vec3 origin, glm::vec3 direction, int depth, gl
 
         // compute the mirror reflection
 
-//        if (has_reflection) {
-//
-//        }
+        if (model.reflection) {
+            auto reflect3 = direction - 2.0f * glm::dot(direction, normal) * normal;
+            return object_color *  ray_tracing_light(frag_position, reflect3, depth + 1, light_color, mesh_models);
+        }
 
-        // only local light strength now;
         return local;
     }
 }

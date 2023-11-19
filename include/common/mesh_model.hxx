@@ -49,7 +49,7 @@ public:
 
 	glm::mat4 transform;
 
-    bool blending{false};
+    bool blending{false}, reflection{false};
 
     glm::vec3 object_color{1, 1, 1};
 

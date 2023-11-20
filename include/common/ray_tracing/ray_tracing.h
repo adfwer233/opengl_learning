@@ -9,6 +9,8 @@
 #include "common/mesh_model.hxx"
 #include "common/io/render_output.h"
 
+#include <random>
+
 constexpr const int n = 720;
 constexpr const int m = 720;
 
@@ -243,10 +245,9 @@ glm::vec3 ray_tracing_light(glm::vec3 origin, glm::vec3 direction, int depth, gl
         }
 
         // compute the mirror reflection
-
         if (model.reflection) {
             auto reflect3 = direction - 2.0f * glm::dot(direction, normal) * normal;
-            return object_color *  ray_tracing_light(frag_position, reflect3, depth + 1, light_color, mesh_models);
+            return local +  ray_tracing_light(frag_position, reflect3, depth + 1, light_color, mesh_models);
         }
 
         return local;
@@ -286,13 +287,25 @@ void ray_tracing(const Camera &camera, std::vector<std::reference_wrapper<MeshMo
         model.transform = glm::identity<glm::mat4>();
     }
 
+    constexpr int sampling_number_per_pixel = 4;
+
     #pragma omp parallel for num_threads(8)
     for (int i = 0; i < n; i++) {
         std::cerr << i << std::endl;
+
+        std::mt19937 gen(std::time(nullptr));
+        std::uniform_real_distribution<float> delta_i_generator(0, 1);
+        std::uniform_real_distribution<float> delta_j_generator(0, 1);
         for (int j = 0; j < m; j++) {
-            auto view_point = base - (up * float(i)) + (right * (float(j)));
-            Ray ray(camera.position, view_point - camera.position);
-            image[i][j] = ray_tracing_light(camera.position, view_point - camera.position, 1, {1, 1, 1}, mesh_models);
+            for (int k = 0; k < sampling_number_per_pixel; k++) {
+                auto view_point = base - (up * float(i)) + (right * (float(j)));
+                auto delta_i = delta_i_generator(gen);
+                auto delta_j = delta_j_generator(gen);
+                view_point += (-up * delta_i + right * delta_j);
+                Ray ray(camera.position, view_point - camera.position);
+                image[i][j] += ray_tracing_light(camera.position, view_point - camera.position, 1, {1, 1, 1}, mesh_models);
+            }
+            image[i][j] /= float(sampling_number_per_pixel);
         }
     }
 

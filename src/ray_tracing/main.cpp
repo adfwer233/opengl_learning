@@ -167,17 +167,18 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 
 int main(int argc, char **argv) {
 
-    std::string config_path_str = "";
+    std::string config_path_str = "config.txt";
 
     std::string shader_root = SHADER_DIR;
     std::string skybox_root = SKYBOX_DIR;
+    std::string texture_root = TEXTURE_DIR;
+    std::string model_root = MODEL_DIR;
 
-    if (argc >= 2) {
-        config_path_str = std::string(argv[1]);
-    }
-
+    if (argc >= 2) config_path_str = std::string(argv[1]);
     if (argc >= 3) shader_root = std::string(argv[2]);
     if (argc >= 4) skybox_root = std::string(argv[3]);
+    if (argc >= 5) texture_root = std::string(argv[4]);
+    if (argc >= 6) model_root = std::string(argv[5]);
 
     std::cout << std::format("config path: {}\n", config_path_str);
 
@@ -188,7 +189,6 @@ int main(int argc, char **argv) {
     int config_ent_num = 0;
     config_fstream >> config_ent_num;
     std::cout << config_ent_num << std::endl;
-
 
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -264,16 +264,16 @@ int main(int argc, char **argv) {
         std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    auto mesh_from_obj = ModelIO().read_obj_model(std::format("{}/nanosuit/nanosuit.obj", MODEL_DIR));
+    auto mesh_from_obj = ModelIO().read_obj_model(std::format("{}/nanosuit/nanosuit.obj", model_root));
 
     std::ranges::for_each(mesh_from_obj, [&](auto &x){ mesh_models.push_back(x); });
     std::ranges::for_each(mesh_models, [](auto &x){x.get().bind_buffer();});
 
     cubic.bind_buffer();
 
-    cubic2.bind_texture(std::format("{}/container.jpg", TEXTURE_DIR), diffuse_texture);
-    mirror.bind_texture_with_alpha(std::format("{}/mirror.png", TEXTURE_DIR), diffuse_texture);
-    mirror2.bind_texture_with_alpha(std::format("{}/mirror.png", TEXTURE_DIR), diffuse_texture);
+    cubic2.bind_texture(std::format("{}/container.jpg", texture_root), diffuse_texture);
+    mirror.bind_texture_with_alpha(std::format("{}/mirror.png", texture_root), diffuse_texture);
+    mirror2.bind_texture_with_alpha(std::format("{}/mirror.png", texture_root), diffuse_texture);
 
     cubic.reflection = true;
 
@@ -317,6 +317,33 @@ int main(int argc, char **argv) {
     Shader envir_reflect_shader(std::format("{}/envir_reflect.vs", shader_root), std::format("{}/envir_reflect.fs", shader_root));
     envir_reflect_shader.use();
     envir_reflect_shader.set_int("skybox", 0);
+
+    std::array<MeshModel, 100> config_model;
+    std::vector<std::reference_wrapper<MeshModel>> reflect_models;
+
+    for (auto i: std::views::iota(0, config_ent_num)) {
+        int op;
+        float ax, ay, az, bx, by, bz;
+        config_fstream >> op >> ax >> ay >> az >> bx >> by >> bz;
+        std::cout << std::format("{} {} {} {} {} {}\n", ax, ay, az, bx, by, bz);
+        if (op == 0) {
+            config_model[i] = Constructor::Cubic({ax, ay ,az}, {bx, by, bz});
+            config_model[i].object_color = {0.5, 0.1, 0};
+            mesh_models.emplace_back(config_model[i]);
+        } else if (op == 1) {
+            config_model[i] = Constructor::Cubic({ax, ay ,az}, {bx, by, bz});
+            config_model[i].reflection = true;
+            reflect_models.emplace_back(config_model[i]);
+        } else if (op == 2) {
+            config_model[i] = Constructor::Rectangle({ax, ay ,az}, {ax, by, az}, {bx, ay, bz});
+            config_model[i].blending = true;
+            mesh_models.emplace_back(config_model[i]);
+            config_model[i].bind_texture_with_alpha(std::format("{}/mirror.png", texture_root), diffuse_texture);
+        } else {
+            continue;
+        }
+        config_model[i].bind_buffer();
+    }
 
     while (not glfwWindowShouldClose(window)) {
         float currentFrame = static_cast<float>(glfwGetTime());
@@ -376,10 +403,11 @@ int main(int argc, char **argv) {
         envir_reflect_shader.use();
         glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.ID);
         cubic.process_environment_reflection_rendering(envir_reflect_shader, camera, skybox.ID);
+        std::ranges::for_each(reflect_models, [&](auto x){x.get().process_environment_reflection_rendering(envir_reflect_shader, camera, skybox.ID);});
 
         std::ranges::for_each(mesh_from_obj, [&](auto &x){ x.process_rendering(shader, camera, depth_map, lightPos); });
         std::ranges::sort(mesh_models, [](auto &x, auto &y){ return x.get().get_distance(camera.position) < y.get().get_distance(camera.position); });
-        std::ranges::for_each(mesh_models, [&](std::reference_wrapper<MeshModel> model){ model.get().process_rendering(shader, camera, depth_map, lightPos); });
+        std::ranges::for_each(mesh_models, [&](auto model){ model.get().process_rendering(shader, camera, depth_map, lightPos); });
         light_src.process_rendering(shader, camera, depth_map, lightPos);
 
         if (enable_filter) {

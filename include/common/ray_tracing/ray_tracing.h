@@ -11,8 +11,8 @@
 
 #include <random>
 
-constexpr const int n = 720;
-constexpr const int m = 720;
+constexpr const int n = 1024;
+constexpr const int m = 1024;
 
 std::array<std::array<glm::vec3, m>, n> image;
 
@@ -240,17 +240,17 @@ glm::vec3 ray_tracing_light(glm::vec3 origin, glm::vec3 direction, int depth, gl
         // compute refraction lighting strength
         if (has_blending) {
             auto refraction = ray_tracing_light(frag_position, direction, depth + 1, light_color, mesh_models);
-            local = (1 - shadow) *  object_color;
+            local = (1 - shadow) *  object_color * light_color;
             return local * alpha + (1 - alpha) * refraction;
         }
 
         // compute the mirror reflection
+        auto reflect = direction - 2.0f * glm::dot(direction, normal) * normal;
         if (model.reflection) {
-            auto reflect3 = direction - 2.0f * glm::dot(direction, normal) * normal;
-            return local +  ray_tracing_light(frag_position, reflect3, depth + 1, light_color, mesh_models);
+            return local +  ray_tracing_light(frag_position, reflect, depth + 1, light_color, mesh_models);
         }
 
-        return local;
+        return local + 0.1f * ray_tracing_light(frag_position, reflect, depth, object_color, mesh_models);
     }
 }
 
